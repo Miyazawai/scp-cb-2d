@@ -431,9 +431,11 @@ func show_inv(entries: Array, sel: int) -> void:
 			l.text = ''
 		box.color = Color(0.16, 0.14, 0.07, 0.95) if i == sel else Color(0.09, 0.10, 0.12, 0.95)
 	inv_layer.visible = true
+	hud.visible = false
 
 func hide_inv() -> void:
 	inv_layer.visible = false
+	hud.visible = true
 
 # ---------------------------------------------------------------- text
 
