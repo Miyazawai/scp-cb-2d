@@ -34,6 +34,7 @@ var hl: Sprite2D = null
 var card_level := 0
 var inv: Array = []
 var docs_found: Dictionary = {}
+var _sc_fail := 0
 var spawn_pos := Vector2.ZERO
 var save_pos := Vector2.ZERO
 var scp_spawn := Vector2.ZERO
@@ -263,8 +264,140 @@ func _args() -> PackedStringArray:
 	out.append_array(OS.get_cmdline_user_args())
 	return out
 
+func _scenarios() -> Dictionary:
+	return {
+		"act1_walkthrough": [
+			{ "do": "assert_state", "value": "PLAY", "label": "session starts in play" },
+			{ "do": "near", "to": [5.5, 5.5], "tol": 24.0, "label": "spawns in the cell" },
+			{ "do": "teleport", "to": [13.0, 4.5] },
+			{ "do": "wait", "secs": 0.4 },
+			{ "do": "assert_objective", "value": "obj_corridor", "label": "corridor beat fires" },
+			{ "do": "teleport", "to": [21.0, 16.2] },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
+			{ "do": "assert_state", "value": "DOC", "label": "log opens" },
+			{ "do": "close_doc" },
+			{ "do": "assert_docs", "value": "incident_log_1", "label": "log is recorded" },
+			{ "do": "teleport", "to": [27.0, 18.0] },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "teleport", "to": [10.0, 26.0] },
+			{ "do": "wait", "secs": 2.4 },
+			{ "do": "assert_state", "value": "END", "label": "reaches the exit" },
+		],
+		"act1_docs": [
+			{ "do": "teleport", "to": [21.0, 16.2] },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
+			{ "do": "assert_state", "value": "DOC", "label": "log opens" },
+			{ "do": "assert_docs", "value": "incident_log_1", "label": "picking it up records it" },
+			{ "do": "close_doc" },
+			{ "do": "assert_state", "value": "PLAY", "label": "closing returns control" },
+		],
+		"act1_death_respawn": [
+			{ "do": "teleport", "to": [27.0, 18.0] },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "teleport", "to": [20.0, 17.0] },
+			{ "do": "die" },
+			{ "do": "wait", "secs": 3.2 },
+			{ "do": "assert_state", "value": "PLAY", "label": "respawns into play" },
+			{ "do": "near", "to": [27.0, 18.0], "tol": 28.0, "label": "back at the save terminal" },
+		],
+		"negative_control": [
+			{ "do": "assert_docs", "value": "nope", "label": "this must fail" },
+		]
+	}
+
+func _state_name(s: int) -> String:
+	match s:
+		St.TITLE: return "TITLE"
+		St.PLAY: return "PLAY"
+		St.PAUSE: return "PAUSE"
+		St.DOC: return "DOC"
+		St.DEAD: return "DEAD"
+		St.END: return "END"
+		St.INV: return "INV"
+	return "?"
+
+func _sc_ok(ok: bool, label: String, detail: String = "") -> void:
+	if ok:
+		print("  ok   ", label)
+	else:
+		_sc_fail += 1
+		print("  FAIL ", label, "  ", detail)
+
+func _scenario_run(name: String) -> void:
+	var all := _scenarios()
+	if name == "list":
+		for k in all.keys():
+			print("SCENARIO ", k)
+		get_tree().quit(0)
+		return
+	if not all.has(name):
+		print("SCENARIO unknown: ", name)
+		get_tree().quit(2)
+		return
+
+	_sc_fail = 0
+	card_level = 0
+	docs_found.clear()
+	st = St.PLAY
+	player.freeze = false
+	player.reset_state()
+	ui.show_title(false)
+	ui.fade_to(0.0, 0.01)
+	await get_tree().process_frame
+
+	print("SCENARIO ", name)
+	for step in all[name]:
+		match String(step.get("do", "")):
+			"teleport":
+				var to: Array = step["to"]
+				player.position = Vector2(float(to[0]), float(to[1])) * TILE
+			"wait":
+				await get_tree().create_timer(float(step.get("secs", 0.1))).timeout
+			"interact":
+				_update_prompt()
+				_interact()
+			"close_doc":
+				ui.hide_doc()
+				st = St.PLAY
+				player.freeze = false
+			"die":
+				player.die()
+			"near":
+				var t2: Array = step["to"]
+				var want := Vector2(float(t2[0]), float(t2[1])) * TILE
+				var d := player.position.distance_to(want)
+				_sc_ok(d <= float(step.get("tol", 16.0)), String(step.get("label", "near")),
+					"dist=%.1f want<=%.1f" % [d, float(step.get("tol", 16.0))])
+			"assert_state":
+				_sc_ok(_state_name(st) == String(step["value"]), String(step.get("label", "state")),
+					"got %s want %s" % [_state_name(st), step["value"]])
+			"assert_docs":
+				_sc_ok(docs_found.has(String(step["value"])), String(step.get("label", "docs")),
+					"found=%s" % str(docs_found.keys()))
+			"assert_objective":
+				_sc_ok(String(ui.obj_key) == String(step["value"]), String(step.get("label", "objective")),
+					"got %s want %s" % [ui.obj_key, step["value"]])
+			_:
+				_sc_ok(false, "unknown step " + str(step.get("do", "?")), "")
+
+	print("SCENARIO %s %s failures=%d" % [name, "PASS" if _sc_fail == 0 else "FAIL", _sc_fail])
+	get_tree().quit(0 if _sc_fail == 0 else 1)
+
 func _apply_args() -> void:
 	var a := _args()
+	for arg in a:
+		if arg.begins_with("--scenario"):
+			var nm := "list"
+			if arg.contains("="):
+				nm = arg.split("=")[1]
+			_scenario_run(nm)
+			return
 	if a.has("--selftest"):
 		_selftest()
 		return
