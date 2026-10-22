@@ -33,6 +33,7 @@ var hl: Sprite2D = null
 
 var card_level := 0
 var inv: Array = []
+var docs_found: Dictionary = {}
 var spawn_pos := Vector2.ZERO
 var save_pos := Vector2.ZERO
 var scp_spawn := Vector2.ZERO
@@ -45,6 +46,10 @@ var shot_mode := false
 # ---------------------------------------------------------------- boot
 
 func _ready() -> void:
+	for arg in _args():
+		if arg == "--validate" or arg.begins_with("--validate="):
+			_validate_level(arg)
+			return
 	level = _load_level("res://levels/act1.json")
 	MAP_W = int(level["size"][0])
 	MAP_H = int(level["size"][1])
@@ -61,6 +66,7 @@ func _ready() -> void:
 	_build_ao()
 	_build_lights()
 	_build_props()
+	_build_decals()
 	_build_items()
 	_build_doors()
 	_build_triggers()
@@ -130,61 +136,135 @@ func _load_level(path: String) -> Dictionary:
 			"doors": [], "triggers": [], "scps": [], "spawn": [5.5, 5.5], "exit": {"rect": [9, 25, 3, 3]}}
 	return parsed
 
-func _validate() -> void:
-	var problems: Array = []
-	var sp: Array = level["spawn"]
+func _validate_level(arg: String) -> void:
+	var path := "res://levels/act1.json"
+	if arg.begins_with("--validate="):
+		var raw := arg.substr(11)
+		path = raw if raw.begins_with("res://") else "res://" + raw
+	var lv := _load_level(path)
+	if lv.is_empty() or not lv.has("areas"):
+		print("VALIDATE %s -> cannot load" % path)
+		get_tree().quit(2)
+		return
+
+	var w := int(lv["size"][0])
+	var h := int(lv["size"][1])
+	var g := []
+	for y in h:
+		var row := []
+		for x in w:
+			row.append("#")
+		g.append(row)
+	for a in lv["areas"]:
+		var r: Array = a["rect"]
+		if int(r[2]) <= 0 or int(r[3]) <= 0:
+			print("  ! area %s has an empty rect" % a.get("id", "?"))
+		for yy in range(int(r[1]), int(r[1]) + int(r[3])):
+			for xx in range(int(r[0]), int(r[0]) + int(r[2])):
+				if xx >= 0 and yy >= 0 and xx < w and yy < h:
+					g[yy][xx] = "."
+				else:
+					print("  ! area %s leaves the map at %s" % [a.get("id", "?"), Vector2i(xx, yy)])
+
+	var door_cells := {}
+	for d in lv.get("doors", []):
+		for c in d["cells"]:
+			door_cells[Vector2i(int(c[0]), int(c[1]))] = true
+
+	var sp: Array = lv["spawn"]
 	var start := Vector2i(int(sp[0]), int(sp[1]))
-	var seen := {}
+	var seen := {start: true}
 	var q: Array = [start]
-	seen[start] = true
 	while q.size() > 0:
 		var c: Vector2i = q.pop_back()
 		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 			var n: Vector2i = c + d
+			if n.x < 0 or n.y < 0 or n.x >= w or n.y >= h:
+				continue
 			if seen.has(n):
 				continue
-			var passable := _is_floor(n.x, n.y)
-			if not passable:
-				for dr in doors:
-					if dr.cells.has(n):
-						passable = true
-			if passable:
-				seen[n] = true
-				q.append(n)
-	for it in items:
-		var c := Vector2i(int(it.pos.x / TILE), int(it.pos.y / TILE))
-		if not _is_floor(c.x, c.y):
-			problems.append("item %s is not on floor at %s" % [it.kind, c])
-		elif not seen.has(c):
-			problems.append("item %s is unreachable at %s" % [it.kind, c])
-	for p in level["props"]:
-		var at: Array = p["at"]
+			if g[n.y][n.x] != "." and not door_cells.has(n):
+				continue
+			seen[n] = true
+			q.append(n)
+
+	var problems: Array = []
+	if not seen.has(start):
+		problems.append("spawn %s is not on floor" % start)
+
+	for it in lv.get("items", []):
+		var at: Array = it["at"]
 		var c := Vector2i(int(at[0]), int(at[1]))
-		if not _is_floor(c.x, c.y):
-			problems.append("prop %s is not on floor at %s" % [p["art"], c])
-	for d in doors:
-		for cell in d["cells"]:
+		var inb := c.x >= 0 and c.y >= 0 and c.x < w and c.y < h
+		if not inb or g[c.y][c.x] != ".":
+			problems.append("item %s is not on floor at %s" % [it.get("kind", "?"), c])
+		elif not seen.has(c):
+			problems.append("item %s is unreachable at %s" % [it.get("kind", "?"), c])
+
+	for p in lv.get("props", []):
+		var at2: Array = p["at"]
+		var c2 := Vector2i(int(at2[0]), int(at2[1]))
+		if not (c2.x >= 0 and c2.y >= 0 and c2.x < w and c2.y < h) or g[c2.y][c2.x] != ".":
+			problems.append("prop %s is not on floor at %s" % [p.get("art", "?"), c2])
+
+	for dc in lv.get("decals", []):
+		var at3: Array = dc["at"]
+		var c3 := Vector2i(int(at3[0]), int(at3[1]))
+		if not (c3.x >= 0 and c3.y >= 0 and c3.x < w and c3.y < h) or g[c3.y][c3.x] != ".":
+			problems.append("decal %s is not on floor at %s" % [dc.get("art", "?"), c3])
+
+	var doc_ids := {}
+	for doc in lv.get("documents", []):
+		var did := String(doc.get("id", ""))
+		if did == "":
+			problems.append("document without an id")
+		elif doc_ids.has(did):
+			problems.append("duplicate document id: %s" % did)
+		doc_ids[did] = true
+		var at4: Array = doc["at"]
+		var c4 := Vector2i(int(at4[0]), int(at4[1]))
+		if not (c4.x >= 0 and c4.y >= 0 and c4.x < w and c4.y < h) or g[c4.y][c4.x] != ".":
+			problems.append("document %s is not on floor at %s" % [did, c4])
+		elif not seen.has(c4):
+			problems.append("document %s is unreachable at %s" % [did, c4])
+
+	var allowed := ["say", "objective", "sound", "fade", "teleport", "activate_scp", "end_act"]
+	for t in lv.get("triggers", []):
+		if not t.has("actions"):
+			continue
+		for act in t["actions"]:
+			var verb := String(act.get("do", ""))
+			if not allowed.has(verb):
+				problems.append("trigger uses an unknown action: %s" % verb)
+
+	for d in lv.get("doors", []):
+		for raw_cell in d["cells"]:
+			var cell := Vector2i(int(raw_cell[0]), int(raw_cell[1]))
 			if not seen.has(cell):
 				problems.append("door cell %s is unreachable" % cell)
-	var ex: Array = level["exit"]["rect"]
+
+	var ex: Array = lv["exit"]["rect"]
 	for yy in range(int(ex[1]), int(ex[1]) + int(ex[3])):
 		for xx in range(int(ex[0]), int(ex[0]) + int(ex[2])):
 			if not seen.has(Vector2i(xx, yy)):
 				problems.append("exit tile %s is unreachable" % Vector2i(xx, yy))
-	print("VALIDATE areas=%d lights=%d props=%d items=%d doors=%d reachable=%d problems=%d" % [
-		level["areas"].size(), level["lights"].size(), level["props"].size(),
-		items.size(), doors.size(), seen.size(), problems.size()])
+
+	print("VALIDATE %s areas=%d lights=%d props=%d decals=%d docs=%d items=%d doors=%d reachable=%d problems=%d" % [
+		path, lv["areas"].size(), lv.get("lights", []).size(), lv.get("props", []).size(),
+		lv.get("decals", []).size(), lv.get("documents", []).size(), lv.get("items", []).size(),
+		lv.get("doors", []).size(), seen.size(), problems.size()])
 	for p in problems:
 		print("  ! ", p)
-	get_tree().quit()
+	get_tree().quit(1 if problems.size() > 0 else 0)
+
+func _args() -> PackedStringArray:
+	var out := PackedStringArray()
+	out.append_array(OS.get_cmdline_args())
+	out.append_array(OS.get_cmdline_user_args())
+	return out
 
 func _apply_args() -> void:
-	var a := PackedStringArray()
-	a.append_array(OS.get_cmdline_args())
-	a.append_array(OS.get_cmdline_user_args())
-	if a.has("--validate"):
-		_validate()
-		return
+	var a := _args()
 	if a.has("--selftest"):
 		_selftest()
 		return
@@ -494,6 +574,13 @@ func _build_props() -> void:
 	for p in level["props"]:
 		var at: Array = p["at"]
 		_prop(String(p["art"]), Vector2(float(at[0]), float(at[1])), int(p.get("z", 1)), Color.TRANSPARENT)
+func _build_decals() -> void:
+	for dc in level.get("decals", []):
+		var at: Array = dc["at"]
+		var art := String(dc["art"])
+		if Assets.has_art("tiles/" + art):
+			_sprite("tiles/" + art, Vector2(float(at[0]), float(at[1])) * TILE, int(dc.get("z", 0)))
+
 func _build_items() -> void:
 	for it in level["items"]:
 		var at: Array = it["at"]
@@ -503,6 +590,15 @@ func _build_items() -> void:
 		if it.has("label_key"):
 			data["label_key"] = String(it["label_key"])
 		items.append(_make_item(Vector2(float(at[0]), float(at[1])) * TILE, String(it["kind"]), data))
+	for doc in level.get("documents", []):
+		var dat: Array = doc["at"]
+		var dd := {
+			"doc_id": String(doc["id"]),
+			"title_key": String(doc["title_key"]),
+			"body_key": String(doc["body_key"]),
+			"critical": bool(doc.get("critical", false)),
+		}
+		items.append(_make_item(Vector2(float(dat[0]), float(dat[1])) * TILE, "doc", dd))
 func _make_item(pos: Vector2, kind: String, data: Dictionary) -> Dictionary:
 	var node := Node2D.new()
 	node.position = pos
@@ -578,9 +674,31 @@ func _build_triggers() -> void:
 		var r: Array = t["rect"]
 		triggers.append({
 			"rect": Rect2(float(r[0]) * TILE, float(r[1]) * TILE, float(r[2]) * TILE, float(r[3]) * TILE),
-			"kind": String(t["kind"]),
+			"kind": String(t.get("kind", "")),
+			"actions": t.get("actions", []),
 			"fired": false
 		})
+func _run_actions(actions: Array) -> void:
+	for act in actions:
+		match String(act.get("do", "")):
+			"say":
+				ui.say(I18n.t(String(act.get("key", ""))), float(act.get("secs", 3.0)))
+			"objective":
+				ui.set_objective(String(act.get("key", "")))
+			"sound":
+				audio.play(String(act.get("file", "")), float(act.get("db", 0.0)))
+			"fade":
+				ui.fade_to(float(act.get("to", 0.0)), float(act.get("secs", 0.6)))
+			"activate_scp":
+				if scp:
+					scp.active = true
+			"teleport":
+				var to: Array = act["to"]
+				if player:
+					player.position = Vector2(float(to[0]), float(to[1])) * TILE
+			"end_act":
+				ui.show_end(true)
+
 func _fire(kind: String) -> void:
 	match kind:
 		"corridor":
@@ -773,6 +891,8 @@ func _door_force(delta: float) -> void:
 			d.force_t = 0.0
 
 func _process(delta: float) -> void:
+	if ui == null:
+		return
 	if shot_mode:
 		pass
 	else:
@@ -902,6 +1022,9 @@ func _interact() -> void:
 			audio.play("pickup.wav", -2.0)
 			ui.set_objective("obj_door1" if card_level == 1 else "obj_exit")
 		"doc":
+			var meta = prompt.ref.data
+			if meta.has("doc_id"):
+				docs_found[String(meta["doc_id"])] = true
 			st = St.DOC
 			player.freeze = true
 			ui.show_doc(I18n.t(prompt.ref.data.title_key), I18n.t(prompt.ref.data.body_key))
@@ -962,7 +1085,10 @@ func _check_triggers() -> void:
 			continue
 		if t.rect.has_point(player.position):
 			t.fired = true
-			_fire(t.kind)
+			if t.get("actions", []).size() > 0:
+				_run_actions(t["actions"])
+			else:
+				_fire(t.kind)
 	if exit_zone.size.x > 0 and exit_zone.has_point(player.position):
 		_win()
 

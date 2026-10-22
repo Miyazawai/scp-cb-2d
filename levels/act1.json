@@ -68,11 +68,16 @@
   "items": [
     { "kind": "card",    "at": [28.5, 6.0],  "level": 1, "label_key": "card_lv1" },
     { "kind": "card",    "at": [18.5, 19.0], "level": 2, "label_key": "card_lv2" },
-    { "kind": "doc",     "at": [21.0, 15.0] },
     { "kind": "save",    "at": [27.0, 18.0] },
     { "kind": "battery", "at": [7.5, 3.5] },
     { "kind": "battery", "at": [8.5, 19.0] }
   ],
+
+  "documents": [
+    { "id": "incident_log_1", "title_key": "doc_title", "body_key": "doc_body", "at": [21.0, 15.0], "critical": true }
+  ],
+
+  "decals": [],
 
   "triggers": [
     { "kind": "corridor",   "rect": [12, 2, 3, 8] },
