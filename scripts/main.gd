@@ -47,6 +47,8 @@ var exit_zone := Rect2()
 var prompt: Dictionary = {}
 var dead_t := 0.0
 var met_173 := false
+var scp_type := ""
+var deaths := 0
 var shot_mode := false
 
 # ---------------------------------------------------------------- boot
@@ -417,6 +419,13 @@ func _scenarios() -> Dictionary:
 			{ "do": "assert_state", "value": "END", "label": "act card shown" },
 			{ "do": "near", "to": [29.5, 14.5], "tol": 40.0, "label": "auto-saved at the elevator" },
 		],
+		"act2_106": [
+			{ "do": "teleport", "to": [6.0, 4.5] },
+			{ "do": "wait", "secs": 0.6 },
+			{ "do": "teleport", "to": [16.0, 5.5] },
+			{ "do": "wait", "secs": 9.0 },
+			{ "do": "assert_deaths", "label": "the old man reaches a player who stands still" },
+		],
 		"fixture_spawn": [
 			{ "do": "near", "to": [2.5, 2.5], "tol": 24.0, "label": "booted into the level passed by --level" },
 		],
@@ -494,6 +503,8 @@ func _scenario_run(name: String) -> void:
 			"assert_card":
 				_sc_ok(card_level == int(step["value"]), String(step.get("label", "card")),
 					"got level %d want %s" % [card_level, step["value"]])
+			"assert_deaths":
+				_sc_ok(deaths > 0, String(step.get("label", "deaths")), "deaths=%d" % deaths)
 			"assert_toast":
 				_sc_ok(ui.toast.text != "", String(step.get("label", "toast")), "toast was empty")
 			"assert_docs":
@@ -534,6 +545,23 @@ func _apply_args() -> void:
 			" char=", Assets.has_art("chars/player_down_0.png"),
 			" snd=", Assets.snd("amb_loop.wav") != null)
 		get_tree().quit()
+		return
+	if a.has("--shot12"):
+		shot_mode = true
+		st = St.PLAY
+		ui.show_title(false)
+		ui.fade_to(0.0, 0.01)
+		player.use_mouse_aim = false
+		player.facing = Vector2.RIGHT
+		card_level = 2
+		ui.set_objective("obj_a2_breakers")
+		if scp:
+			scp.active = true
+			scp._started = true
+			scp.hold = true
+			scp.position = Vector2(9.0, 5.0) * TILE
+		player.position = Vector2(13.0, 5.0) * TILE
+		_shot("demo_shot12.png")
 		return
 	if a.has("--shot11"):
 		shot_mode = true
@@ -1058,11 +1086,16 @@ func _spawn_player() -> void:
 func _spawn_scp() -> void:
 	if level["scps"].is_empty():
 		return
-	var s0: Array = level["scps"][0]["at"]
+	var meta: Dictionary = level["scps"][0]
+	var s0: Array = meta["at"]
 	scp_spawn = Vector2(float(s0[0]), float(s0[1])) * TILE
+	scp_type = String(meta.get("type", "173"))
 	scp = Node2D.new()
-	scp.name = "SCP-173"
-	scp.set_script(load("res://scripts/scp173.gd"))
+	scp.name = "SCP-" + scp_type
+	if scp_type == "106":
+		scp.set_script(load("res://scripts/scp106.gd"))
+	else:
+		scp.set_script(load("res://scripts/scp173.gd"))
 	scp.position = scp_spawn
 	add_child(scp)
 	scp.setup(player)
@@ -1099,7 +1132,11 @@ func _start_game() -> void:
 	player.position = spawn_pos
 	player.freeze = false
 	player.reset_state()
-	scp.position = scp_spawn
+	if scp:
+		scp.position = scp_spawn
+		if scp_type == "106":
+			scp.trail = []
+			scp._started = false
 	ui.set_objective("obj_cell")
 	ui.say(I18n.t("say_start"), 2.8)
 	ui.fade_to(0.0, 0.8)
@@ -1108,6 +1145,7 @@ func _start_game() -> void:
 func _on_died() -> void:
 	if st == St.DEAD:
 		return
+	deaths += 1
 	st = St.DEAD
 	dead_t = 0.0
 	ui.show_dead(true)
@@ -1119,7 +1157,12 @@ func _respawn() -> void:
 	player.position = save_pos
 	player.freeze = false
 	player.reset_state()
-	scp.position = scp_spawn
+	if scp:
+		scp.position = scp_spawn
+		if scp_type == "106":
+			scp.trail = []
+			scp._started = false
+			scp.active = true
 	ui.fade_to(0.0, 0.5)
 	st = St.PLAY
 
@@ -1262,12 +1305,14 @@ func _process(delta: float) -> void:
 	var danger := 0.0
 	if scp and st == St.PLAY:
 		var d: float = player.position.distance_to(scp.position)
-		if not met_173 and player.can_see(scp.position):
+		if scp_type == "173" and not met_173 and player.can_see(scp.position):
 			met_173 = true
 			ui.say(I18n.t("say_173"), 3.4)
 			ui.set_objective("obj_corridor")
 			audio.play("stinger.wav", -12.0)
-		if not player.can_see(scp.position):
+		if scp_type == "106":
+			danger = clampf(1.0 - d / 220.0, 0.0, 1.0)
+		elif not player.can_see(scp.position):
 			danger = clampf(1.0 - d / 200.0, 0.0, 1.0)
 		if danger > 0.35:
 			audio.set_heartbeat(true)
