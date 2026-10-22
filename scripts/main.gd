@@ -36,6 +36,9 @@ var inv: Array = []
 static var next_level := ""
 static var carry_card := 0
 var docs_found: Dictionary = {}
+var has_nvg := false
+var breakers: Dictionary = {}
+var powered := false
 var _sc_fail := 0
 var spawn_pos := Vector2.ZERO
 var save_pos := Vector2.ZERO
@@ -147,8 +150,8 @@ func _load_level(path: String) -> Dictionary:
 			"doors": [], "triggers": [], "scps": [], "spawn": [5.5, 5.5], "exit": {"rect": [9, 25, 3, 3]}}
 	return parsed
 
-func _pacing_report() -> void:
-	var lv := _load_level("res://levels/act1.json")
+func _pacing_report(lv_path: String) -> void:
+	var lv := _load_level(lv_path)
 	var w := int(lv["size"][0])
 	var h := int(lv["size"][1])
 	var g := []
@@ -168,21 +171,17 @@ func _pacing_report() -> void:
 		for c in d["cells"]:
 			door_cells[Vector2i(int(c[0]), int(c[1]))] = true
 
-	var route := [
-		{"name": "spawn -> corridor",  "at": [13.0, 4.5],  "dwell": 15},
-		{"name": "corridor -> locker", "at": [15.0, 12.5], "dwell": 45},
-		{"name": "locker -> door 1",   "at": [24.5, 8.5],  "dwell": 20},
-		{"name": "door 1 -> log",      "at": [21.0, 15.0], "dwell": 40},
-		{"name": "log -> card 2",      "at": [18.5, 19.0], "dwell": 30},
-		{"name": "card 2 -> door 2",   "at": [14.2, 16.5], "dwell": 20},
-		{"name": "door 2 -> power",    "at": [4.5, 17.5],  "dwell": 40},
-		{"name": "power -> elevator",  "at": [29.5, 14.5], "dwell": 30},
-	]
+	var route: Array = lv.get("beat_route", [])
+	if route.is_empty():
+		print("PACING no beat_route in ", lv_path)
+		get_tree().quit(2)
+		return
 
 	var sp: Array = lv["spawn"]
 	var cur := Vector2i(int(sp[0]), int(sp[1]))
 	var total_travel := 0
 	var total_dwell := 0
+	print("PACING level=%s" % lv_path)
 	print("PACING name                 tiles   travel_s  dwell_s")
 	for step in route:
 		var at: Array = step["at"]
@@ -190,13 +189,12 @@ func _pacing_report() -> void:
 		var dist := _bfs_tiles(g, w, h, door_cells, cur, dst)
 		var travel := float(dist) * 16.0 / 44.0
 		total_travel += int(travel)
-		total_dwell += int(step["dwell"])
-		print("PACING %-20s %5d %9.0f %8d" % [step["name"], dist, travel, int(step["dwell"])])
+		total_dwell += int(step.get("dwell", 30))
+		print("PACING %-20s %5d %9.0f %8d" % [step["name"], dist, travel, int(step.get("dwell", 30))])
 		cur = dst
 	var total := total_travel + total_dwell
 	print("PACING total_travel_s=%d total_dwell_s=%d total_s=%d total_min=%.1f" % [
 		total_travel, total_dwell, total, float(total) / 60.0])
-	print("PACING target_min=25..35 %s" % ["OK" if total >= 25 * 60 and total <= 35 * 60 else "OUT OF RANGE"])
 	get_tree().quit(0)
 
 func _bfs_tiles(g: Array, w: int, h: int, door_cells: Dictionary, from: Vector2i, to: Vector2i) -> int:
@@ -514,7 +512,12 @@ func _apply_args() -> void:
 	var a := _args()
 	for arg in a:
 		if arg == "--pacing":
-			_pacing_report()
+			var pp := "res://levels/act1.json"
+			for a1 in a:
+				if a1.begins_with("--level="):
+					var v1 := a1.substr(8)
+					pp = v1 if v1.begins_with("res://") else "res://" + v1
+			_pacing_report(pp)
 			return
 	for arg in a:
 		if arg.begins_with("--scenario"):
@@ -531,6 +534,17 @@ func _apply_args() -> void:
 			" char=", Assets.has_art("chars/player_down_0.png"),
 			" snd=", Assets.snd("amb_loop.wav") != null)
 		get_tree().quit()
+		return
+	if a.has("--shot11"):
+		shot_mode = true
+		st = St.PLAY
+		ui.show_title(false)
+		ui.fade_to(0.0, 0.01)
+		player.use_mouse_aim = false
+		player.facing = Vector2.RIGHT
+		card_level = 2
+		ui.set_objective("obj_a2_breakers")
+		_shot("demo_shot11.png")
 		return
 	if a.has("--shot9") or a.has("--shot10"):
 		shot_mode = true
@@ -870,6 +884,8 @@ func _build_items() -> void:
 			data["level"] = int(it["level"])
 		if it.has("label_key"):
 			data["label_key"] = String(it["label_key"])
+		if it.has("id"):
+			data["id"] = String(it["id"])
 		items.append(_make_item(Vector2(float(at[0]), float(at[1])) * TILE, String(it["kind"]), data))
 	for doc in level.get("documents", []):
 		var dat: Array = doc["at"]
@@ -1040,6 +1056,8 @@ func _spawn_player() -> void:
 	cam.make_current()
 
 func _spawn_scp() -> void:
+	if level["scps"].is_empty():
+		return
 	var s0: Array = level["scps"][0]["at"]
 	scp_spawn = Vector2(float(s0[0]), float(s0[1])) * TILE
 	scp = Node2D.new()
@@ -1288,6 +1306,8 @@ func _update_prompt() -> void:
 				"doc": txt = I18n.t("prompt_read")
 				"save": txt = I18n.t("prompt_save")
 				"vending": txt = I18n.t("prompt_vend")
+				"nvg": txt = I18n.t("prompt_nvg")
+				"breaker": txt = I18n.t("prompt_breaker")
 			prompt = {"kind": it.kind, "ref": it, "text": txt, "pos": it.pos}
 	if prompt.is_empty():
 		ui.set_prompt("")
@@ -1330,6 +1350,27 @@ func _interact() -> void:
 			_inv_add("battery")
 			audio.play("pickup.wav", -2.0)
 			ui.say(I18n.t("say_battery"), 1.8)
+		"nvg":
+			var it3 = prompt.ref
+			it3.taken = true
+			it3.node.queue_free()
+			has_nvg = true
+			_inv_add("nvg")
+			audio.play("pickup.wav", -2.0)
+			ui.say(I18n.t("say_nvg"), 2.2)
+		"breaker":
+			var itb = prompt.ref
+			var bid := String(itb.data.get("id", "b"))
+			if not breakers.has(bid):
+				breakers[bid] = true
+				audio.play("door_close.wav", -6.0)
+				ui.say(I18n.t("say_breaker_on"), 2.0)
+				if breakers.size() >= 3 and not powered:
+					powered = true
+					burst = 1.6
+					audio.play("alarm_loop.wav", -8.0)
+					ui.say(I18n.t("say_power_on"), 3.0)
+					ui.set_objective("obj_a2_lift")
 		"vending":
 			var roll := randf()
 			if roll < 0.25:

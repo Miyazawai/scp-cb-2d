@@ -1,0 +1,120 @@
+{
+  "_comment": "Act II — 下潜. HCZ: older, darker, no emergency lighting. Ring of rooms; breakers far apart.",
+  "size": [36, 28],
+  "spawn": [6.5, 5.0],
+  "exit": { "rect": [29, 21, 2, 2], "mode": "gate_a" },
+
+  "areas": [
+    { "id": "entry",     "rect": [4, 3, 6, 5],    "kind": "room" },
+    { "id": "link_ab",   "rect": [10, 4, 2, 2],   "kind": "corridor" },
+    { "id": "cage",      "rect": [12, 3, 8, 5],   "kind": "room" },
+    { "id": "link_bc",   "rect": [20, 5, 2, 2],   "kind": "corridor" },
+    { "id": "monitor",   "rect": [22, 3, 7, 6],   "kind": "room" },
+    { "id": "link_cd",   "rect": [26, 9, 2, 3],   "kind": "corridor" },
+    { "id": "breaker_d", "rect": [22, 12, 7, 5],  "kind": "room" },
+    { "id": "link_de",   "rect": [20, 13, 2, 2],  "kind": "corridor" },
+    { "id": "central",   "rect": [12, 11, 8, 7],  "kind": "room" },
+    { "id": "link_ef",   "rect": [6, 14, 6, 2],   "kind": "corridor" },
+    { "id": "breaker_f", "rect": [3, 11, 6, 6],   "kind": "room" },
+    { "id": "link_fg",   "rect": [6, 17, 2, 3],   "kind": "corridor" },
+    { "id": "south",     "rect": [3, 20, 10, 5],  "kind": "room" },
+    { "id": "link_gh",   "rect": [12, 21, 4, 2],  "kind": "corridor" },
+    { "id": "breaker_h", "rect": [16, 19, 7, 5],  "kind": "room" },
+    { "id": "link_hi",   "rect": [23, 20, 3, 2],  "kind": "corridor" },
+    { "id": "lift",      "rect": [26, 18, 6, 6],  "kind": "room" }
+  ],
+
+  "doors": [
+    { "id": "d_monitor", "cells": [[21, 5], [21, 6]], "level": 2 },
+    { "id": "d_lift",    "cells": [[24, 20], [24, 21]], "level": 3 }
+  ],
+
+  "lights": [
+    { "at": [6.5, 5.0],   "energy": 0.80 },
+    { "at": [16.0, 5.0],  "energy": 0.45 },
+    { "at": [25.0, 5.5],  "energy": 0.55 },
+    { "at": [15.5, 13.5], "energy": 0.50 },
+    { "at": [29.0, 20.5], "energy": 0.70 },
+    { "at": [7.0, 22.0],  "energy": 0.35, "flicker": true }
+  ],
+
+  "props": [
+    { "art": "locker.png",       "at": [4.5, 3.5] },
+    { "art": "locker.png",       "at": [4.5, 4.5] },
+    { "art": "save_terminal.png","at": [8.0, 6.0], "z": 2 },
+    { "art": "desk.png",         "at": [8.0, 6.0] },
+    { "art": "crate.png",        "at": [12.5, 3.5] },
+    { "art": "crate.png",        "at": [19.0, 7.0] },
+    { "art": "bodybag.png",      "at": [13.5, 7.0] },
+    { "art": "terminal.png",     "at": [25.0, 5.5], "z": 2 },
+    { "art": "desk.png",         "at": [25.0, 5.5] },
+    { "art": "chair.png",        "at": [23.5, 6.5] },
+    { "art": "locker.png",       "at": [28.0, 3.5] },
+    { "art": "barrel.png",       "at": [22.5, 12.5] },
+    { "art": "barrel.png",       "at": [23.5, 12.5] },
+    { "art": "terminal.png",     "at": [15.0, 13.0], "z": 2 },
+    { "art": "desk.png",         "at": [15.0, 13.0] },
+    { "art": "save_terminal.png","at": [18.5, 16.5], "z": 2 },
+    { "art": "desk.png",         "at": [18.5, 16.5] },
+    { "art": "crate.png",        "at": [12.5, 17.0] },
+    { "art": "vent.png",         "at": [3.5, 11.5] },
+    { "art": "bodybag.png",      "at": [4.0, 14.0] },
+    { "art": "crate.png",        "at": [16.5, 19.5] },
+    { "art": "barrel.png",       "at": [16.5, 23.0] },
+    { "art": "locker.png",       "at": [31.0, 18.5] },
+    { "art": "locker.png",       "at": [31.0, 19.5] }
+  ],
+
+  "decals": [
+    { "art": "blood_splat.png", "at": [26.5, 10.5], "z": 0, "tint": [0.20, 0.21, 0.24, 0.9] },
+    { "art": "blood_splat.png", "at": [26.0, 13.0], "z": 0, "tint": [0.18, 0.19, 0.22, 0.85] },
+    { "art": "blood_splat.png", "at": [8.0, 21.0], "z": 0, "tint": [0.42, 0.30, 0.30, 0.92] },
+    { "art": "floor_crack.png", "at": [14.0, 16.5], "z": 0 }
+  ],
+
+  "items": [
+    { "kind": "card",    "at": [17.0, 6.0],  "level": 2, "label_key": "card_lv2" },
+    { "kind": "nvg",     "at": [14.0, 4.5] },
+    { "kind": "breaker", "at": [25.0, 14.0], "id": "breaker_d" },
+    { "kind": "breaker", "at": [5.0, 13.0],  "id": "breaker_f" },
+    { "kind": "breaker", "at": [19.0, 21.0], "id": "breaker_h" },
+    { "kind": "save",    "at": [8.0, 6.0] },
+    { "kind": "save",    "at": [18.5, 16.5] },
+    { "kind": "battery", "at": [13.0, 7.5] },
+    { "kind": "battery", "at": [4.0, 22.0] }
+  ],
+
+  "documents": [
+    { "id": "act2_monitor", "title_key": "doc_a2_mon_title", "body_key": "doc_a2_mon_body", "at": [22.5, 3.5] },
+    { "id": "act2_breaker", "title_key": "doc_a2_brk_title", "body_key": "doc_a2_brk_body", "at": [4.5, 12.0], "critical": true },
+    { "id": "act2_914",     "title_key": "doc_a2_914_title", "body_key": "doc_a2_914_body", "at": [13.0, 12.0] }
+  ],
+
+  "triggers": [
+    { "kind": "hcz", "rect": [4, 3, 4, 3], "actions": [
+      { "do": "say", "key": "say_a2_enter", "secs": 3.4 },
+      { "do": "objective", "key": "obj_a2_breakers" },
+      { "do": "sound", "file": "door_close.wav", "db": -10.0 }
+    ]},
+    { "kind": "lift", "rect": [29, 21, 2, 2], "actions": [
+      { "do": "objective", "key": "obj_a2_lift" },
+      { "do": "save" },
+      { "do": "fade", "to": 1.0, "secs": 0.8 },
+      { "do": "wait", "secs": 1.1 },
+      { "do": "end_act" }
+    ]}
+  ],
+
+  "beat_route": [
+    { "name": "entry -> cage",      "at": [17.0, 6.0],  "dwell": 45 },
+    { "name": "cage -> monitor",    "at": [25.0, 5.5],  "dwell": 50 },
+    { "name": "monitor -> breakerD","at": [25.0, 14.0], "dwell": 55 },
+    { "name": "breakerD -> 914",    "at": [15.0, 13.0], "dwell": 55 },
+    { "name": "914 -> breakerF",    "at": [5.0, 13.0],  "dwell": 55 },
+    { "name": "breakerF -> south",  "at": [7.0, 22.0],  "dwell": 30 },
+    { "name": "south -> breakerH",  "at": [19.0, 21.0], "dwell": 55 },
+    { "name": "breakerH -> lift",   "at": [29.0, 20.5], "dwell": 40 }
+  ],
+
+  "scps": []
+}
