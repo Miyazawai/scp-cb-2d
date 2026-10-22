@@ -18,3 +18,6 @@ assets/art/.*.tmpdir/
 
 # machine-specific launcher shortcuts
 *.lnk
+
+# exported builds
+build/
