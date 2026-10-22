@@ -37,13 +37,14 @@ var inv: Array = []
 static var next_level := ""
 static var carry_card := 0
 static var carry_playing := false
+static var broadcast := false
+static var nuke := false
 static var scenario_consumed := false
 static var docs_found: Dictionary = {}
 var has_nvg := false
 var breakers: Dictionary = {}
 var powered := false
-var broadcast := false
-var nuke := false
+
 var ambient := 1.0
 var deny_t := 0.0
 var _sc_fail := 0
@@ -99,6 +100,8 @@ func _ready() -> void:
 	_build_ui()
 	_build_post()
 	_build_highlight()
+	if level.has("initial"):
+		_apply_state(String(level["initial"]))
 
 	st = St.TITLE
 	player.freeze = true
@@ -505,13 +508,22 @@ func _scenarios() -> Dictionary:
 			{ "do": "assert_ambient_below", "value": "0.5", "label": "and drops the lights" },
 		],
 		"act3_endings": [
-			{ "do": "teleport", "to": [10.5, 4.5] },
-			{ "do": "wait", "secs": 0.2 },
-			{ "do": "interact" },
-			{ "do": "teleport", "to": [30.5, 4.5] },
-			{ "do": "wait", "secs": 1.6 },
-			{ "do": "assert_state", "value": "END", "label": "gate A with a broadcast ends the run" },
-			{ "do": "assert_end_key", "value": "end_captured", "label": "and it is the containment ending" },
+			{ "do": "teleport", "to": [5.5, 19.0] },
+			{ "do": "wait", "secs": 1.8 },
+			{ "do": "assert_state", "value": "END", "label": "gate B ends the run" },
+			{ "do": "assert_end_key", "value": "end_executed", "label": "no warhead means the quarantine ending" },
+		],
+		"act4_return": [
+			{ "do": "near", "to": [3.0, 3.0], "tol": 30.0, "label": "starts in the Gate A airlock" },
+			{ "do": "assert_doors_closed", "label": "the return leg starts locked down" },
+			{ "do": "assert_ambient_below", "value": "0.5", "label": "and dark" },
+		],
+		"act4_ending": [
+			{ "do": "set_flag", "value": "broadcast" },
+			{ "do": "teleport", "to": [15.5, 4.0] },
+			{ "do": "wait", "secs": 1.8 },
+			{ "do": "assert_state", "value": "END", "label": "reaching the surface ends the run" },
+			{ "do": "assert_end_key", "value": "end_captured", "label": "broadcast means containment" },
 		],
 		"act3_mtf": [
 			{ "do": "teleport", "to": [21.0, 5.0] },
@@ -629,6 +641,11 @@ func _scenario_run(name: String) -> void:
 					if String(e["type"]) == want_t:
 						got = int(e["node"].call("get_seen"))
 				_sc_ok(got >= int(step["value"]), String(step.get("label", "scp seen")), "seen=%d" % got)
+			"set_flag":
+				if String(step["value"]) == "broadcast":
+					broadcast = true
+				elif String(step["value"]) == "nuke":
+					nuke = true
 			"assert_no_scp":
 				var found := false
 				for e in scps:

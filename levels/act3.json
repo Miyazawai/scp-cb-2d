@@ -1,117 +1,634 @@
 {
   "_comment": "Act III — 夺权. EZ is clean, lit and orderly; the horror is the calm.",
-  "size": [32, 22],
-  "spawn": [27.0, 4.5],
-  "exit": { "rect": [3, 18, 7, 3], "mode": "gate_b" },
-
-  "areas": [
-    { "id": "entry",      "rect": [26, 3, 4, 4],  "kind": "room" },
-    { "id": "link_a",     "rect": [24, 4, 2, 2],  "kind": "corridor" },
-    { "id": "office",     "rect": [14, 3, 10, 6], "kind": "room" },
-    { "id": "link_b",     "rect": [12, 5, 2, 2],  "kind": "corridor" },
-    { "id": "server",     "rect": [6, 3, 6, 5],   "kind": "room" },
-    { "id": "link_c",     "rect": [8, 8, 2, 3],   "kind": "corridor" },
-    { "id": "electrical", "rect": [4, 11, 8, 5],  "kind": "room" },
-    { "id": "link_d",     "rect": [6, 16, 2, 2],  "kind": "corridor" },
-    { "id": "gate_b",     "rect": [3, 18, 7, 3],  "kind": "room" },
-    { "id": "gate_a",     "rect": [30, 3, 2, 4],  "kind": "room" }
+  "size": [
+    32,
+    22
   ],
-
-  "doors": [
-    { "id": "d_server", "cells": [[13, 5], [13, 6]], "level": 3 },
-    { "id": "d_elec",   "cells": [[8, 10], [9, 10]], "level": 3 }
+  "spawn": [
+    27.0,
+    4.5
   ],
-
-  "lights": [
-    { "at": [27.0, 4.5],  "energy": 1.10 },
-    { "at": [24.5, 4.5],  "energy": 0.95 },
-    { "at": [17.0, 4.5],  "energy": 1.05 },
-    { "at": [21.0, 7.0],  "energy": 0.95 },
-    { "at": [9.0, 4.5],   "energy": 1.00 },
-    { "at": [8.5, 9.0],   "energy": 0.80 },
-    { "at": [7.0, 13.0],  "energy": 1.00 },
-    { "at": [4.5, 19.0],  "energy": 0.90 },
-    { "at": [8.0, 19.0],  "energy": 0.80 },
-    { "at": [30.5, 4.5],  "energy": 0.95 }
-  ],
-
-  "props": [
-    { "art": "desk.png",         "at": [16.0, 4.0] },
-    { "art": "chair.png",        "at": [17.0, 4.0] },
-    { "art": "desk.png",         "at": [20.0, 4.0] },
-    { "art": "terminal.png",     "at": [20.0, 4.0], "z": 2 },
-    { "art": "corpse.png",       "at": [18.5, 6.5] },
-    { "art": "corpse.png",       "at": [21.5, 6.0] },
-    { "art": "blood_splat.png",  "at": [20.0, 6.5], "z": 0 },
-    { "art": "locker.png",       "at": [14.5, 3.5] },
-    { "art": "desk.png",         "at": [9.0, 4.0] },
-    { "art": "terminal.png",     "at": [10.5, 4.5], "z": 2 },
-    { "art": "chair.png",        "at": [11.0, 5.5] },
-    { "art": "locker.png",       "at": [6.5, 3.5] },
-    { "art": "barrel.png",       "at": [5.0, 12.0] },
-    { "art": "barrel.png",       "at": [6.0, 12.0] },
-    { "art": "crate.png",        "at": [4.5, 14.5] },
-    { "art": "terminal.png",     "at": [7.5, 13.0], "z": 2 },
-    { "art": "desk.png",         "at": [7.5, 13.0] },
-    { "art": "crate.png",        "at": [5.5, 19.0] },
-    { "art": "locker.png",       "at": [3.5, 18.5] },
-    { "art": "save_terminal.png","at": [15.0, 8.0], "z": 2 },
-    { "art": "desk.png",         "at": [15.0, 8.0] }
-  ],
-
-  "decals": [
-    { "art": "blood_splat.png", "at": [19.5, 5.0], "z": 0, "tint": [0.42, 0.30, 0.30, 0.92] },
-    { "art": "floor_crack.png", "at": [22.0, 7.5], "z": 0 }
-  ],
-
-  "items": [
-    { "kind": "save",      "at": [15.0, 8.0] },
-    { "kind": "broadcast", "at": [10.5, 4.5] },
-    { "kind": "nuke",      "at": [5.5, 19.0] },
-    { "kind": "gate_switch", "at": [7.5, 13.0] },
-    { "kind": "battery",   "at": [26.5, 3.5] }
-  ],
-
-  "documents": [
-    { "id": "act3_elec", "title_key": "doc_a3_elec_title", "body_key": "doc_a3_elec_body", "at": [4.5, 11.5], "critical": true },
-    { "id": "act3_079",  "title_key": "doc_a3_079_title",  "body_key": "doc_a3_079_body",  "at": [6.5, 3.5] },
-    { "id": "act3_gate", "title_key": "doc_a3_gate_title", "body_key": "doc_a3_gate_body", "at": [9.5, 19.5] }
-  ],
-
-  "triggers": [
-    { "kind": "ez", "rect": [26, 3, 4, 4], "actions": [
-      { "do": "say", "key": "say_a3_enter", "secs": 3.4 },
-      { "do": "objective", "key": "obj_a3_elec" }
-    ]},
-    { "kind": "office", "rect": [16, 3, 8, 6], "actions": [
-      { "do": "say", "key": "say_a3_049", "secs": 3.0 },
-      { "do": "sound", "file": "door_close.wav", "db": -12.0 }
-    ]},
-    { "kind": "mtf", "rect": [20, 3, 4, 6], "actions": [
-      { "do": "say", "key": "say_a3_mtf", "secs": 3.2 },
-      { "do": "sound", "file": "stinger.wav", "db": -16.0 }
-    ]},
-    { "kind": "gate_a", "rect": [30, 3, 2, 4], "actions": [
-      { "do": "ending", "gate": "a" }
-    ]},
-    { "kind": "gate_b", "rect": [3, 18, 7, 3], "actions": [
-      { "do": "ending", "gate": "b" }
-    ]}
-  ],
-
-  "states": {
-    "lockdown": { "lights": 0.35, "doors": "lock", "say": "say_lockdown", "objective": "obj_return" }
+  "exit": {
+    "rect": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "mode": "gate_b"
   },
-
-  "beat_route": [
-    { "name": "entry -> office",     "at": [17.0, 5.0],  "dwell": 45 },
-    { "name": "office -> server",    "at": [9.0, 4.5],   "dwell": 50 },
-    { "name": "server -> electrical","at": [7.5, 13.0],  "dwell": 45 },
-    { "name": "electrical -> gateB", "at": [5.5, 19.0],  "dwell": 40 },
-    { "name": "gateB -> gateA",      "at": [30.5, 4.5],  "dwell": 40 }
+  "areas": [
+    {
+      "id": "entry",
+      "rect": [
+        26,
+        3,
+        4,
+        4
+      ],
+      "kind": "room"
+    },
+    {
+      "id": "link_a",
+      "rect": [
+        24,
+        4,
+        2,
+        2
+      ],
+      "kind": "corridor"
+    },
+    {
+      "id": "office",
+      "rect": [
+        14,
+        3,
+        10,
+        6
+      ],
+      "kind": "room"
+    },
+    {
+      "id": "link_b",
+      "rect": [
+        12,
+        5,
+        2,
+        2
+      ],
+      "kind": "corridor"
+    },
+    {
+      "id": "server",
+      "rect": [
+        6,
+        3,
+        6,
+        5
+      ],
+      "kind": "room"
+    },
+    {
+      "id": "link_c",
+      "rect": [
+        8,
+        8,
+        2,
+        3
+      ],
+      "kind": "corridor"
+    },
+    {
+      "id": "electrical",
+      "rect": [
+        4,
+        11,
+        8,
+        5
+      ],
+      "kind": "room"
+    },
+    {
+      "id": "link_d",
+      "rect": [
+        6,
+        16,
+        2,
+        2
+      ],
+      "kind": "corridor"
+    },
+    {
+      "id": "gate_b",
+      "rect": [
+        3,
+        18,
+        7,
+        3
+      ],
+      "kind": "room"
+    },
+    {
+      "id": "gate_a",
+      "rect": [
+        30,
+        3,
+        2,
+        4
+      ],
+      "kind": "room"
+    }
   ],
-
+  "doors": [
+    {
+      "id": "d_server",
+      "cells": [
+        [
+          13,
+          5
+        ],
+        [
+          13,
+          6
+        ]
+      ],
+      "level": 3
+    },
+    {
+      "id": "d_elec",
+      "cells": [
+        [
+          8,
+          10
+        ],
+        [
+          9,
+          10
+        ]
+      ],
+      "level": 3
+    }
+  ],
+  "lights": [
+    {
+      "at": [
+        27.0,
+        4.5
+      ],
+      "energy": 1.1
+    },
+    {
+      "at": [
+        24.5,
+        4.5
+      ],
+      "energy": 0.95
+    },
+    {
+      "at": [
+        17.0,
+        4.5
+      ],
+      "energy": 1.05
+    },
+    {
+      "at": [
+        21.0,
+        7.0
+      ],
+      "energy": 0.95
+    },
+    {
+      "at": [
+        9.0,
+        4.5
+      ],
+      "energy": 1.0
+    },
+    {
+      "at": [
+        8.5,
+        9.0
+      ],
+      "energy": 0.8
+    },
+    {
+      "at": [
+        7.0,
+        13.0
+      ],
+      "energy": 1.0
+    },
+    {
+      "at": [
+        4.5,
+        19.0
+      ],
+      "energy": 0.9
+    },
+    {
+      "at": [
+        8.0,
+        19.0
+      ],
+      "energy": 0.8
+    },
+    {
+      "at": [
+        30.5,
+        4.5
+      ],
+      "energy": 0.95
+    }
+  ],
+  "props": [
+    {
+      "art": "desk.png",
+      "at": [
+        16.0,
+        4.0
+      ]
+    },
+    {
+      "art": "chair.png",
+      "at": [
+        17.0,
+        4.0
+      ]
+    },
+    {
+      "art": "desk.png",
+      "at": [
+        20.0,
+        4.0
+      ]
+    },
+    {
+      "art": "terminal.png",
+      "at": [
+        20.0,
+        4.0
+      ],
+      "z": 2
+    },
+    {
+      "art": "corpse.png",
+      "at": [
+        18.5,
+        6.5
+      ]
+    },
+    {
+      "art": "corpse.png",
+      "at": [
+        21.5,
+        6.0
+      ]
+    },
+    {
+      "art": "blood_splat.png",
+      "at": [
+        20.0,
+        6.5
+      ],
+      "z": 0
+    },
+    {
+      "art": "locker.png",
+      "at": [
+        14.5,
+        3.5
+      ]
+    },
+    {
+      "art": "desk.png",
+      "at": [
+        9.0,
+        4.0
+      ]
+    },
+    {
+      "art": "terminal.png",
+      "at": [
+        10.5,
+        4.5
+      ],
+      "z": 2
+    },
+    {
+      "art": "chair.png",
+      "at": [
+        11.0,
+        5.5
+      ]
+    },
+    {
+      "art": "locker.png",
+      "at": [
+        6.5,
+        3.5
+      ]
+    },
+    {
+      "art": "barrel.png",
+      "at": [
+        5.0,
+        12.0
+      ]
+    },
+    {
+      "art": "barrel.png",
+      "at": [
+        6.0,
+        12.0
+      ]
+    },
+    {
+      "art": "crate.png",
+      "at": [
+        4.5,
+        14.5
+      ]
+    },
+    {
+      "art": "terminal.png",
+      "at": [
+        7.5,
+        13.0
+      ],
+      "z": 2
+    },
+    {
+      "art": "desk.png",
+      "at": [
+        7.5,
+        13.0
+      ]
+    },
+    {
+      "art": "crate.png",
+      "at": [
+        5.5,
+        19.0
+      ]
+    },
+    {
+      "art": "locker.png",
+      "at": [
+        3.5,
+        18.5
+      ]
+    },
+    {
+      "art": "save_terminal.png",
+      "at": [
+        15.0,
+        8.0
+      ],
+      "z": 2
+    },
+    {
+      "art": "desk.png",
+      "at": [
+        15.0,
+        8.0
+      ]
+    }
+  ],
+  "decals": [
+    {
+      "art": "blood_splat.png",
+      "at": [
+        19.5,
+        5.0
+      ],
+      "z": 0,
+      "tint": [
+        0.42,
+        0.3,
+        0.3,
+        0.92
+      ]
+    },
+    {
+      "art": "floor_crack.png",
+      "at": [
+        22.0,
+        7.5
+      ],
+      "z": 0
+    }
+  ],
+  "items": [
+    {
+      "kind": "save",
+      "at": [
+        15.0,
+        8.0
+      ]
+    },
+    {
+      "kind": "broadcast",
+      "at": [
+        10.5,
+        4.5
+      ]
+    },
+    {
+      "kind": "nuke",
+      "at": [
+        5.5,
+        19.0
+      ]
+    },
+    {
+      "kind": "gate_switch",
+      "at": [
+        7.5,
+        13.0
+      ]
+    },
+    {
+      "kind": "battery",
+      "at": [
+        26.5,
+        3.5
+      ]
+    }
+  ],
+  "documents": [
+    {
+      "id": "act3_elec",
+      "title_key": "doc_a3_elec_title",
+      "body_key": "doc_a3_elec_body",
+      "at": [
+        4.5,
+        11.5
+      ],
+      "critical": true
+    },
+    {
+      "id": "act3_079",
+      "title_key": "doc_a3_079_title",
+      "body_key": "doc_a3_079_body",
+      "at": [
+        6.5,
+        3.5
+      ]
+    },
+    {
+      "id": "act3_gate",
+      "title_key": "doc_a3_gate_title",
+      "body_key": "doc_a3_gate_body",
+      "at": [
+        9.5,
+        19.5
+      ]
+    }
+  ],
+  "triggers": [
+    {
+      "kind": "ez",
+      "rect": [
+        26,
+        3,
+        4,
+        4
+      ],
+      "actions": [
+        {
+          "do": "say",
+          "key": "say_a3_enter",
+          "secs": 3.4
+        },
+        {
+          "do": "objective",
+          "key": "obj_a3_elec"
+        }
+      ]
+    },
+    {
+      "kind": "office",
+      "rect": [
+        16,
+        3,
+        8,
+        6
+      ],
+      "actions": [
+        {
+          "do": "say",
+          "key": "say_a3_049",
+          "secs": 3.0
+        },
+        {
+          "do": "sound",
+          "file": "door_close.wav",
+          "db": -12.0
+        }
+      ]
+    },
+    {
+      "kind": "mtf",
+      "rect": [
+        20,
+        3,
+        4,
+        6
+      ],
+      "actions": [
+        {
+          "do": "say",
+          "key": "say_a3_mtf",
+          "secs": 3.2
+        },
+        {
+          "do": "sound",
+          "file": "stinger.wav",
+          "db": -16.0
+        }
+      ]
+    },
+    {
+      "kind": "gate_a",
+      "rect": [
+        30,
+        3,
+        2,
+        4
+      ],
+      "actions": [
+        {
+          "do": "save"
+        },
+        {
+          "do": "fade",
+          "to": 1.0,
+          "secs": 0.8
+        },
+        {
+          "do": "wait",
+          "secs": 1.0
+        },
+        {
+          "do": "goto_level",
+          "file": "res://levels/act4.json"
+        }
+      ]
+    },
+    {
+      "kind": "gate_b",
+      "rect": [
+        3,
+        18,
+        7,
+        3
+      ],
+      "actions": [
+        {
+          "do": "ending",
+          "gate": "b"
+        }
+      ]
+    }
+  ],
+  "states": {
+    "lockdown": {
+      "lights": 0.35,
+      "doors": "lock",
+      "say": "say_lockdown",
+      "objective": "obj_return"
+    }
+  },
+  "beat_route": [
+    {
+      "name": "entry -> office",
+      "at": [
+        17.0,
+        5.0
+      ],
+      "dwell": 45
+    },
+    {
+      "name": "office -> server",
+      "at": [
+        9.0,
+        4.5
+      ],
+      "dwell": 50
+    },
+    {
+      "name": "server -> electrical",
+      "at": [
+        7.5,
+        13.0
+      ],
+      "dwell": 45
+    },
+    {
+      "name": "electrical -> gateB",
+      "at": [
+        5.5,
+        19.0
+      ],
+      "dwell": 40
+    },
+    {
+      "name": "gateB -> gateA",
+      "at": [
+        30.5,
+        4.5
+      ],
+      "dwell": 40
+    }
+  ],
   "scps": [
-    { "type": "049", "at": [19.0, 6.0] }
+    {
+      "type": "049",
+      "at": [
+        19.0,
+        6.0
+      ]
+    }
   ]
 }

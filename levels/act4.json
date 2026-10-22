@@ -1,0 +1,304 @@
+{
+  "_comment": "Act IV — 回程. The way out is the way you came in, after the door control died.",
+  "size": [
+    18,
+    10
+  ],
+  "spawn": [
+    3.0,
+    3.0
+  ],
+  "initial": "lockdown",
+  "exit": {
+    "rect": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "mode": "gate_a"
+  },
+  "areas": [
+    {
+      "id": "airlock_a",
+      "rect": [
+        2,
+        2,
+        3,
+        3
+      ],
+      "kind": "room"
+    },
+    {
+      "id": "link_1",
+      "rect": [
+        5,
+        3,
+        2,
+        2
+      ],
+      "kind": "corridor"
+    },
+    {
+      "id": "hall",
+      "rect": [
+        7,
+        2,
+        6,
+        5
+      ],
+      "kind": "room"
+    },
+    {
+      "id": "link_2",
+      "rect": [
+        13,
+        4,
+        2,
+        2
+      ],
+      "kind": "corridor"
+    },
+    {
+      "id": "surface",
+      "rect": [
+        15,
+        2,
+        2,
+        5
+      ],
+      "kind": "room"
+    }
+  ],
+  "doors": [
+    {
+      "id": "d_return_1",
+      "cells": [
+        [
+          6,
+          3
+        ],
+        [
+          6,
+          4
+        ]
+      ],
+      "level": 3
+    },
+    {
+      "id": "d_return_2",
+      "cells": [
+        [
+          13,
+          4
+        ],
+        [
+          13,
+          5
+        ]
+      ],
+      "level": 3
+    }
+  ],
+  "lights": [
+    {
+      "at": [
+        3.0,
+        3.0
+      ],
+      "energy": 0.55
+    },
+    {
+      "at": [
+        9.0,
+        4.0
+      ],
+      "energy": 0.45,
+      "flicker": true
+    },
+    {
+      "at": [
+        15.5,
+        4.0
+      ],
+      "energy": 0.6
+    }
+  ],
+  "props": [
+    {
+      "art": "locker.png",
+      "at": [
+        2.5,
+        2.5
+      ]
+    },
+    {
+      "art": "crate.png",
+      "at": [
+        7.5,
+        2.5
+      ]
+    },
+    {
+      "art": "bodybag.png",
+      "at": [
+        8.5,
+        6.0
+      ]
+    },
+    {
+      "art": "corpse.png",
+      "at": [
+        11.0,
+        5.5
+      ]
+    },
+    {
+      "art": "blood_splat.png",
+      "at": [
+        10.0,
+        4.0
+      ],
+      "z": 0
+    },
+    {
+      "art": "save_terminal.png",
+      "at": [
+        12.0,
+        2.5
+      ],
+      "z": 2
+    },
+    {
+      "art": "desk.png",
+      "at": [
+        12.0,
+        2.5
+      ]
+    },
+    {
+      "art": "vent.png",
+      "at": [
+        15.5,
+        2.5
+      ]
+    }
+  ],
+  "decals": [
+    {
+      "art": "blood_splat.png",
+      "at": [
+        9.5,
+        3.0
+      ],
+      "z": 0,
+      "tint": [
+        0.2,
+        0.21,
+        0.24,
+        0.9
+      ]
+    },
+    {
+      "art": "floor_crack.png",
+      "at": [
+        14.0,
+        5.0
+      ],
+      "z": 0
+    }
+  ],
+  "items": [
+    {
+      "kind": "save",
+      "at": [
+        12.0,
+        2.5
+      ]
+    }
+  ],
+  "documents": [
+    {
+      "id": "act4_note",
+      "title_key": "doc_a4_title",
+      "body_key": "doc_a4_body",
+      "at": [
+        7.5,
+        3.5
+      ],
+      "critical": true
+    }
+  ],
+  "triggers": [
+    {
+      "kind": "return",
+      "rect": [
+        2,
+        2,
+        3,
+        3
+      ],
+      "actions": [
+        {
+          "do": "say",
+          "key": "say_a4_enter",
+          "secs": 3.4
+        },
+        {
+          "do": "objective",
+          "key": "obj_a4_surface"
+        }
+      ]
+    },
+    {
+      "kind": "surface",
+      "rect": [
+        15,
+        2,
+        2,
+        5
+      ],
+      "actions": [
+        {
+          "do": "ending",
+          "gate": "a"
+        }
+      ]
+    }
+  ],
+  "states": {
+    "lockdown": {
+      "lights": 0.35,
+      "doors": "lock",
+      "say": "say_a4_lock",
+      "objective": "obj_a4_surface"
+    }
+  },
+  "beat_route": [
+    {
+      "name": "airlock -> hall",
+      "at": [
+        9.0,
+        4.0
+      ],
+      "dwell": 45
+    },
+    {
+      "name": "hall -> surface",
+      "at": [
+        15.5,
+        4.0
+      ],
+      "dwell": 30
+    }
+  ],
+  "scps": [
+    {
+      "type": "173",
+      "at": [
+        11.0,
+        4.0
+      ]
+    }
+  ]
+}
