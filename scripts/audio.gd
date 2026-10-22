@@ -39,12 +39,19 @@ func play_at(rel: String, pos: Vector2, volume_db: float = 0.0) -> void:
 	p.play()
 	p.finished.connect(p.queue_free)
 
+func _loopify(s: AudioStream) -> void:
+	if s is AudioStreamWAV:
+		s.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		s.loop_begin = 0
+		s.loop_end = int(s.get_length() * float(s.mix_rate))
+
 func start_ambience(rel: String = "amb_loop.wav", volume_db: float = -10.0) -> void:
 	if _amb:
 		return
 	var s := Assets.snd(rel)
 	if s == null:
 		return
+	_loopify(s)
 	_amb = AudioStreamPlayer.new()
 	_amb.stream = s
 	_amb.volume_db = volume_db
@@ -58,11 +65,12 @@ func set_heartbeat(on: bool) -> void:
 		var s := Assets.snd("heartbeat.wav")
 		if s == null:
 			return
+		_loopify(s)
 		if _heart == null:
 			_heart = AudioStreamPlayer.new()
 			add_child(_heart)
 		_heart.stream = s
-		_heart.volume_db = -8.0
+		_heart.volume_db = -12.0
 		_heart.play()
 	elif _heart and _heart.playing:
 		_heart.stop()

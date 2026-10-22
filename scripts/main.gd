@@ -23,6 +23,9 @@ var doors: Array = []
 var items: Array = []
 var lights_ref: Array = []
 var flicker: Array = []
+var triggers: Array = []
+var cm_node: CanvasModulate = null
+var burst := 0.0
 
 var card_level := 0
 var spawn_pos := Vector2.ZERO
@@ -31,6 +34,7 @@ var scp_spawn := Vector2.ZERO
 var exit_zone := Rect2()
 var prompt: Dictionary = {}
 var dead_t := 0.0
+var met_173 := false
 var shot_mode := false
 
 # ---------------------------------------------------------------- boot
@@ -44,10 +48,12 @@ func _ready() -> void:
 	exit_zone = Rect2(9 * TILE, 25 * TILE, 3 * TILE, 3 * TILE)
 	_build_floor()
 	_build_walls()
+	_build_ao()
 	_build_lights()
 	_build_props()
 	_build_items()
 	_build_doors()
+	_build_triggers()
 	_spawn_player()
 	_spawn_scp()
 	_build_ui()
@@ -61,10 +67,59 @@ func _ready() -> void:
 
 	_apply_args()
 
+func _selftest() -> void:
+	var start := Vector2i(5, 5)
+	var seen := {}
+	var q: Array = [start]
+	seen[start] = true
+	while q.size() > 0:
+		var c: Vector2i = q.pop_back()
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var n: Vector2i = c + d
+			if seen.has(n):
+				continue
+			var passable := _is_floor(n.x, n.y)
+			if not passable:
+				for dr in doors:
+					if dr.cells.has(n):
+						passable = true
+			if passable:
+				seen[n] = true
+				q.append(n)
+
+	print("SELFTEST tiles reachable: ", seen.size())
+	var ex_ok := 0
+	for y in range(25, 28):
+		for x in range(9, 12):
+			if seen.has(Vector2i(x, y)):
+				ex_ok += 1
+	print("SELFTEST exit tiles reachable: ", ex_ok, "/9")
+	for it in items:
+		var cell := Vector2i(int(it.pos.x / TILE), int(it.pos.y / TILE))
+		print("SELFTEST item ", it.kind, " at ", cell, " floor=", _is_floor(cell.x, cell.y), " reachable=", seen.has(cell))
+	for dr in doors:
+		var ok := true
+		for c in dr.cells:
+			if not seen.has(c):
+				ok = false
+		print("SELFTEST door lv", dr.level, " at ", dr.cells, " reachable=", ok)
+	var scell := Vector2i(int(scp_spawn.x / TILE), int(scp_spawn.y / TILE))
+	print("SELFTEST 173 at ", scell, " floor=", _is_floor(scell.x, scell.y))
+	get_tree().quit()
+
 func _apply_args() -> void:
 	var a := PackedStringArray()
 	a.append_array(OS.get_cmdline_args())
 	a.append_array(OS.get_cmdline_user_args())
+	if a.has("--selftest"):
+		_selftest()
+		return
+	if a.has("--audit"):
+		print("AUDIT art=", Assets.has_art("tiles/floor_concrete_a.png"),
+			" char=", Assets.has_art("chars/player_down_0.png"),
+			" snd=", Assets.snd("amb_loop.wav") != null)
+		get_tree().quit()
+		return
 	if a.has("--shot") or a.has("--shot2") or a.has("--shot3"):
 		shot_mode = true
 		st = St.PLAY
@@ -217,9 +272,50 @@ func _build_walls() -> void:
 				if has_shadow:
 					_sprite("tiles/wall_shadow.png", Vector2(c.x, (y + 1) * TILE + 3), -1)
 
+func _build_ao() -> void:
+	for y in MAP_H:
+		for x in MAP_W:
+			if not _is_floor(x, y):
+				continue
+			var px := x * TILE
+			var py := y * TILE
+			if not _is_floor(x, y - 1):
+				_edge_shade(Rect2(px, py, TILE, 5), 0.34, true)
+			if not _is_floor(x, y + 1):
+				_edge_shade(Rect2(px, py + TILE - 5, TILE, 5), 0.26, false)
+			if not _is_floor(x - 1, y):
+				_edge_shade_h(Rect2(px, py, 5, TILE), 0.28, true)
+			if not _is_floor(x + 1, y):
+				_edge_shade_h(Rect2(px + TILE - 5, py, 5, TILE), 0.28, false)
+
+func _edge_shade(rect: Rect2, a: float, from_top: bool) -> void:
+	for i in 3:
+		var h := rect.size.y / 3.0
+		var y := rect.position.y + (i if from_top else 2 - i) * h
+		var q := Polygon2D.new()
+		q.polygon = PackedVector2Array([
+			Vector2(rect.position.x, y), Vector2(rect.end.x, y),
+			Vector2(rect.end.x, y + h), Vector2(rect.position.x, y + h)])
+		q.color = Color(0, 0, 0, a * (1.0 - i * 0.3))
+		q.z_index = -1
+		add_child(q)
+
+func _edge_shade_h(rect: Rect2, a: float, from_left: bool) -> void:
+	for i in 3:
+		var w := rect.size.x / 3.0
+		var x := rect.position.x + (i if from_left else 2 - i) * w
+		var q := Polygon2D.new()
+		q.polygon = PackedVector2Array([
+			Vector2(x, rect.position.y), Vector2(x + w, rect.position.y),
+			Vector2(x + w, rect.end.y), Vector2(x, rect.end.y)])
+		q.color = Color(0, 0, 0, a * (1.0 - i * 0.3))
+		q.z_index = -1
+		add_child(q)
+
 func _build_lights() -> void:
 	var cm := CanvasModulate.new()
 	cm.color = Color(0.16, 0.175, 0.215)
+	cm_node = cm
 	add_child(cm)
 
 	var tex := _radial(128, 1.5)
@@ -365,6 +461,27 @@ func _make_door(cells: Array, level: int) -> Dictionary:
 	return {"cells": cells, "level": level, "body": body, "panels": panels, "open": false,
 			"center": Vector2(cells[0].x * TILE + 8, cells[0].y * TILE + 8)}
 
+func _build_triggers() -> void:
+	triggers.append({"rect": Rect2(12 * TILE, 2 * TILE, 3 * TILE, 8 * TILE), "kind": "corridor", "fired": false})
+	triggers.append({"rect": Rect2(16 * TILE, 13 * TILE, 5 * TILE, 8 * TILE), "kind": "checkpoint", "fired": false})
+	triggers.append({"rect": Rect2(3 * TILE, 13 * TILE, 4 * TILE, 8 * TILE), "kind": "power", "fired": false})
+
+func _fire(kind: String) -> void:
+	match kind:
+		"corridor":
+			ui.say("CONTAINMENT FAILURE — 02:14", 3.2)
+			ui.set_objective("DO NOT LOSE SIGHT OF IT")
+			audio.play("alarm_loop.wav", -12.0)
+			burst = 1.8
+		"checkpoint":
+			ui.set_objective("SAVE AT THE TERMINAL  ·  READ THE LOG")
+			ui.say("CHECKPOINT — SECTOR LCZ-2", 2.4)
+			audio.play("door_hiss.wav", -14.0)
+		"power":
+			ui.say("POWER ROOM — GRID UNSTABLE", 2.6)
+			audio.play("door_close.wav", -14.0)
+			burst = 1.2
+
 func _spawn_player() -> void:
 	spawn_pos = Vector2(5.5, 5.5) * TILE
 	save_pos = spawn_pos
@@ -433,6 +550,7 @@ func _start_game() -> void:
 	scp.position = scp_spawn
 	st = St.PLAY
 	ui.set_objective("GET OUT OF THE CELL")
+	ui.say("D-CLASS 9341 — CELL 08", 2.8)
 	ui.fade_to(0.0, 0.8)
 	audio.play("blink.wav", -14.0)
 
@@ -489,6 +607,14 @@ func _process(delta: float) -> void:
 	if player == null:
 		return
 
+	if cm_node:
+		if burst > 0.0:
+			burst -= delta
+			var k := 0.25 + 0.75 * float(randi() % 2)
+			cm_node.color = Color(0.16, 0.175, 0.215) * k
+		else:
+			cm_node.color = Color(0.16, 0.175, 0.215)
+
 	# flicker
 	for l in flicker:
 		var base: float = 1.5 * 0.55
@@ -505,6 +631,11 @@ func _process(delta: float) -> void:
 	var danger := 0.0
 	if scp and st == St.PLAY:
 		var d: float = player.position.distance_to(scp.position)
+		if not met_173 and player.can_see(scp.position):
+			met_173 = true
+			ui.say("SCP-173 — MAINTAIN EYE CONTACT", 3.4)
+			ui.set_objective("KEEP IT IN YOUR LIGHT")
+			audio.play("stinger.wav", -12.0)
 		if not player.can_see(scp.position):
 			danger = clampf(1.0 - d / 200.0, 0.0, 1.0)
 		if danger > 0.35:
@@ -584,6 +715,12 @@ func _open_door(d) -> void:
 	audio.play("door_hiss.wav", -4.0)
 
 func _check_triggers() -> void:
+	for t in triggers:
+		if t.fired:
+			continue
+		if t.rect.has_point(player.position):
+			t.fired = true
+			_fire(t.kind)
 	if exit_zone.size.x > 0 and exit_zone.has_point(player.position):
 		_win()
 

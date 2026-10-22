@@ -20,6 +20,8 @@ var blink_label: Label = null
 var card_label: Label = null
 var obj_label: Label = null
 var prompt_label: Label = null
+var toast: Label = null
+var toast_t := 0.0
 var vignette: TextureRect = null
 var blink_overlay: ColorRect = null
 var fade_rect: ColorRect = null
@@ -139,6 +141,13 @@ func _build_hud() -> void:
 	prompt_label.size = Vector2(240, 12)
 	prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(prompt_label)
+
+	toast = label("", 8, COL_AMBER)
+	toast.position = Vector2(0, 150)
+	toast.size = Vector2(480, 12)
+	toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	toast.modulate.a = 0.0
+	root.add_child(toast)
 
 func _panel() -> ColorRect:
 	var bg := ColorRect.new()
@@ -309,8 +318,17 @@ func tick(delta: float, blink_ratio: float, battery_ratio: float, card: int, eye
 
 	blink_overlay.color.a = 0.0 if eyes_open else 0.97
 
+	if toast_t > 0.0:
+		toast_t -= delta
+		toast.modulate.a = clampf(toast_t / 0.5, 0.0, 1.0)
+
 func set_objective(text: String) -> void:
 	obj_label.text = text
+
+func say(text: String, secs: float = 2.6) -> void:
+	toast.text = text
+	toast_t = secs
+	toast.modulate.a = 1.0
 
 func set_prompt(text: String) -> void:
 	prompt_label.text = text

@@ -1,0 +1,107 @@
+{
+  "amb_loop.wav": {
+    "duration_sec": 8.0,
+    "loop": true,
+    "peak_dbfs": -12.0,
+    "rms_dbfs": -24.41,
+    "use": "设施底噪：低频嗡鸣 + 通风气流 + 极轻金属偶发咔声"
+  },
+  "step_1.wav": {
+    "duration_sec": 0.16,
+    "loop": false,
+    "peak_dbfs": -3.0,
+    "rms_dbfs": -19.84,
+    "use": "皮鞋踩水泥：硬跟先着地，亮而干"
+  },
+  "step_2.wav": {
+    "duration_sec": 0.16,
+    "loop": false,
+    "peak_dbfs": -3.0,
+    "rms_dbfs": -20.18,
+    "use": "皮鞋踩水泥：鞋底拖动，中频摩擦更多"
+  },
+  "step_3.wav": {
+    "duration_sec": 0.16,
+    "loop": false,
+    "peak_dbfs": -3.0,
+    "rms_dbfs": -20.44,
+    "use": "皮鞋踩水泥：更重的落脚，低频更多"
+  },
+  "door_hiss.wav": {
+    "duration_sec": 0.9,
+    "loop": false,
+    "peak_dbfs": -3.0,
+    "rms_dbfs": -17.85,
+    "use": "气动门开启：起始泄气嘶声 + 末尾金属滑轨"
+  },
+  "door_close.wav": {
+    "duration_sec": 0.6,
+    "loop": false,
+    "peak_dbfs": -3.0,
+    "rms_dbfs": -17.41,
+    "use": "沉重金属门合拢：滑轨、撞击、闷响与锁舌"
+  },
+  "keycard_beep.wav": {
+    "duration_sec": 0.249977,
+    "loop": false,
+    "peak_dbfs": -3.0,
+    "rms_dbfs": -12.64,
+    "use": "读卡器接受：两声短促高频电子蜂鸣"
+  },
+  "keycard_deny.wav": {
+    "duration_sec": 0.349977,
+    "loop": false,
+    "peak_dbfs": -3.0,
+    "rms_dbfs": -12.88,
+    "use": "读卡器拒绝：低沉下行的短促蜂鸣"
+  },
+  "pickup.wav": {
+    "duration_sec": 0.2,
+    "loop": false,
+    "peak_dbfs": -3.0,
+    "rms_dbfs": -19.01,
+    "use": "拾取物品：轻微高频金属叮声"
+  },
+  "flashlight_click.wav": {
+    "duration_sec": 0.06,
+    "loop": false,
+    "peak_dbfs": -3.0,
+    "rms_dbfs": -22.41,
+    "use": "手电开关：塑料壳体机械咔嗒（按下/回弹两下）"
+  },
+  "blink.wav": {
+    "duration_sec": 0.3,
+    "loop": false,
+    "peak_dbfs": -3.0,
+    "rms_dbfs": -22.5,
+    "use": "闭眼/睁眼：低频耳膜压力 + 短促高频衰减"
+  },
+  "scp_step.wav": {
+    "duration_sec": 0.18,
+    "loop": false,
+    "peak_dbfs": -3.0,
+    "rms_dbfs": -11.39,
+    "use": "SCP-173 混凝土雕像挪步：石面粘滑 + 低频撞击"
+  },
+  "heartbeat.wav": {
+    "duration_sec": 1.0,
+    "loop": true,
+    "peak_dbfs": -12.0,
+    "rms_dbfs": -27.99,
+    "use": "心跳两下（咚-咚），低频、可循环"
+  },
+  "stinger.wav": {
+    "duration_sec": 1.4,
+    "loop": false,
+    "peak_dbfs": -3.0,
+    "rms_dbfs": -19.8,
+    "use": "惊吓音：高频噪声爆发 + 下行低频 + 走廊余响"
+  },
+  "alarm_loop.wav": {
+    "duration_sec": 4.0,
+    "loop": true,
+    "peak_dbfs": -3.0,
+    "rms_dbfs": -14.81,
+    "use": "远处警报：墙后闷住的双音循环"
+  }
+}
