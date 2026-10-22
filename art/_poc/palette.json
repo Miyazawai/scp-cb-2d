@@ -1,0 +1,86 @@
+{
+  "name": "SCP Facility 16",
+  "count": 16,
+  "colors": [
+    {
+      "index": 0,
+      "name": "ink",
+      "hex": "#0A0B0E"
+    },
+    {
+      "index": 1,
+      "name": "shadow",
+      "hex": "#171A20"
+    },
+    {
+      "index": 2,
+      "name": "wall_dark",
+      "hex": "#2A2E36"
+    },
+    {
+      "index": 3,
+      "name": "concrete_dark",
+      "hex": "#3B414B"
+    },
+    {
+      "index": 4,
+      "name": "concrete",
+      "hex": "#59606B"
+    },
+    {
+      "index": 5,
+      "name": "concrete_light",
+      "hex": "#7F8792"
+    },
+    {
+      "index": 6,
+      "name": "metal",
+      "hex": "#A8AEB4"
+    },
+    {
+      "index": 7,
+      "name": "bone",
+      "hex": "#DAD4C2"
+    },
+    {
+      "index": 8,
+      "name": "skin_shadow",
+      "hex": "#9B6A4C"
+    },
+    {
+      "index": 9,
+      "name": "rust",
+      "hex": "#8A4C2F"
+    },
+    {
+      "index": 10,
+      "name": "hazard",
+      "hex": "#C46B2E"
+    },
+    {
+      "index": 11,
+      "name": "orange",
+      "hex": "#D97A27"
+    },
+    {
+      "index": 12,
+      "name": "orange_light",
+      "hex": "#F2A94A"
+    },
+    {
+      "index": 13,
+      "name": "blood_dark",
+      "hex": "#4A1018"
+    },
+    {
+      "index": 14,
+      "name": "blood",
+      "hex": "#931F27"
+    },
+    {
+      "index": 15,
+      "name": "green",
+      "hex": "#4F806A"
+    }
+  ]
+}

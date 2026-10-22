@@ -1,0 +1,13 @@
+# Godot 4 generated
+.godot/
+*.translation
+
+# local captures
+demo_shot*.png
+
+# third-party reference material (kept locally only, see docs/research/provenance.md)
+reference/
+
+# OS
+Thumbs.db
+.DS_Store
