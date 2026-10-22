@@ -23,7 +23,10 @@ var use_mouse_aim := true
 
 var cone_light: PointLight2D = null
 var glow_light: PointLight2D = null
+var lights: Array = []
 var _space_prev := false
+
+const OBSERVE_RANGE := 150.0
 
 func _ready() -> void:
 	cone_light = PointLight2D.new()
@@ -145,16 +148,32 @@ func blink_ratio() -> float:
 func battery_ratio() -> float:
 	return clampf(battery / 100.0, 0.0, 1.0)
 
+func _is_lit(p: Vector2) -> bool:
+	for l in lights:
+		if p.distance_to(l["pos"]) < float(l["radius"]):
+			return true
+	return false
+
 func can_see(target: Vector2) -> bool:
 	if freeze:
 		return false
-	if not eyes_open or not light_on or battery <= 0.0:
+	if not eyes_open:
 		return false
 	var to_target := target - global_position
-	if to_target.length() > FLASH_RANGE:
+	var dist := to_target.length()
+	if dist > OBSERVE_RANGE:
 		return false
-	if absf(angle_difference(facing.angle(), to_target.angle())) > deg_to_rad(FLASH_HALF_ANGLE):
+
+	var in_beam := false
+	if light_on and battery > 0.0 and dist <= FLASH_RANGE:
+		if absf(angle_difference(facing.angle(), to_target.angle())) <= deg_to_rad(FLASH_HALF_ANGLE):
+			in_beam = true
+
+	# "observed" must match what the player can actually SEE on screen:
+	# inside the flashlight cone, or standing in the light of a ceiling lamp.
+	if not in_beam and not _is_lit(target):
 		return false
+
 	var space := get_world_2d().direct_space_state
 	var q := PhysicsRayQueryParameters2D.create(global_position, target, 1)
 	var hit := space.intersect_ray(q)

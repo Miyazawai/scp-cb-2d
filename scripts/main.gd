@@ -19,7 +19,12 @@ var card_pos := Vector2.ZERO
 var card_node: Node2D = null
 var card_taken := false
 
+var cam: Camera2D = null
+var vignette: TextureRect = null
+var shake_amt := 0.0
+
 var blink_fill: ColorRect = null
+var blink_label: Label = null
 var batt_fill: ColorRect = null
 var card_label: Label = null
 var center_label: Label = null
@@ -115,7 +120,19 @@ func _radial_texture(px: int, power: float) -> ImageTexture:
 			img.set_pixel(x, y, Color(1, 1, 1, a))
 	return ImageTexture.create_from_image(img)
 
-# ---------------------------------------------------------------- geometry
+func _vignette_texture(px: int) -> ImageTexture:
+	var img := Image.create(px, px, false, Image.FORMAT_RGBA8)
+	var c := px * 0.5
+	for y in px:
+		for x in px:
+			var d := clampf(Vector2(x + 0.5 - c, y + 0.5 - c).length() / c, 0.0, 1.0)
+			var a := pow(clampf((d - 0.30) / 0.70, 0.0, 1.0), 1.7)
+			img.set_pixel(x, y, Color(1, 1, 1, a))
+	return ImageTexture.create_from_image(img)
+
+func _on_scp_stepped(dist: float) -> void:
+	if dist < 150.0:
+		shake_amt = maxf(shake_amt, clampf(1.0 - dist / 150.0, 0.0, 1.0) * 3.2)
 
 func _quad(rect: Rect2, tex: Texture2D, tint: Color, z: int, uv_per_tile: bool = true) -> Polygon2D:
 	var p := Polygon2D.new()
@@ -250,6 +267,8 @@ func _build_walls() -> void:
 		node.add_child(stripe)
 		doors.append({"cell": cell, "body": body, "vis": vis, "stripe": stripe, "open": false})
 
+var light_spots: Array = []
+
 func _build_lights() -> void:
 	var cm := CanvasModulate.new()
 	cm.color = Color(0.24, 0.255, 0.315)
@@ -264,6 +283,7 @@ func _build_lights() -> void:
 		Vector2(20.0 * TILE, 20.0 * TILE), Vector2(26.5 * TILE, 21.5 * TILE),
 	]
 	for p in spots:
+		light_spots.append({"pos": p, "radius": 84.0})
 		var l := PointLight2D.new()
 		l.texture = tex
 		l.texture_scale = 1.75
@@ -306,10 +326,11 @@ func _spawn_player() -> void:
 	cs.shape = shape
 	player.add_child(cs)
 	player.position = Vector2(5 * TILE + 8, 5 * TILE + 8)
+	player.lights = light_spots
 	add_child(player)
 	player.died.connect(_on_player_died)
 
-	var cam := Camera2D.new()
+	cam = Camera2D.new()
 	cam.position_smoothing_enabled = true
 	cam.position_smoothing_speed = 8.0
 	cam.limit_left = 0
@@ -326,6 +347,7 @@ func _spawn_scp() -> void:
 	scp.position = Vector2(19 * TILE + 8, 4 * TILE + 8)
 	add_child(scp)
 	scp.setup(player)
+	scp.connect("stepped", _on_scp_stepped)
 
 func _spawn_card() -> void:
 	card_pos = Vector2(13 * TILE + 8, 9 * TILE + 8)
@@ -361,9 +383,18 @@ func _build_hud() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(root)
 
-	var bl := _label("BLINK", 7, Color("8fa6b8"))
-	bl.position = Vector2(8, 230)
-	root.add_child(bl)
+	vignette = TextureRect.new()
+	vignette.texture = _vignette_texture(128)
+	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	vignette.stretch_mode = TextureRect.STRETCH_SCALE
+	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vignette.modulate = Color(0.62, 0.05, 0.05, 0.0)
+	root.add_child(vignette)
+
+	blink_label = _label("BLINK", 7, Color("8fa6b8"))
+	blink_label.position = Vector2(8, 230)
+	root.add_child(blink_label)
 	var blink_bg := _bar_root(Vector2(8, 239), 70)
 	root.add_child(blink_bg)
 	blink_fill = ColorRect.new()
@@ -409,7 +440,7 @@ func _args() -> PackedStringArray:
 
 func _apply_args() -> void:
 	var a := _args()
-	if a.has("--shot") or a.has("--shot2"):
+	if a.has("--shot") or a.has("--shot2") or a.has("--shot3"):
 		shot_mode = true
 		player.use_mouse_aim = false
 		player.facing = Vector2.RIGHT
@@ -419,6 +450,11 @@ func _apply_args() -> void:
 			scp.position = Vector2(24.0 * TILE, 5.5 * TILE)
 			card_taken = true
 			player.card_level = 1
+		elif a.has("--shot3"):
+			fname = "demo_shot3.png"
+			player.position = Vector2(12.5 * TILE, 4.5 * TILE)
+			scp.position = Vector2(9.5 * TILE, 4.5 * TILE)   # behind the player, close
+			scp.hold = true
 		else:
 			fname = "demo_shot2.png"
 			player.position = Vector2(5.5 * TILE, 5.5 * TILE)
@@ -445,8 +481,32 @@ func _process(delta: float) -> void:
 		return
 	blink_fill.size.x = 68.0 * player.blink_ratio()
 	batt_fill.size.x = 68.0 * player.battery_ratio()
+
+	# forced-blink warning: you must know it is coming, or the death is unfair
+	var br: float = player.blink_ratio()
+	if br < 0.18:
+		var warn: float = 0.35 + 0.65 * absf(sin(float(Time.get_ticks_msec()) / 90.0))
+		blink_label.modulate = Color(1.0, 0.45, 0.4, warn)
+		blink_fill.color = Color(0.95, 0.35, 0.30)
+	else:
+		blink_label.modulate = Color(1, 1, 1, 1)
+		blink_fill.color = Color("7fb2d6")
 	card_label.text = "KEYCARD: %s" % ("LV1" if player.card_level >= 1 else "NONE")
 	blink_overlay.color.a = 0.0 if player.eyes_open else 0.97
+
+	# pressure: the panel bleeds red while it is close and you cannot see it
+	if scp:
+		var d: float = player.position.distance_to(scp.position)
+		var seen: bool = player.can_see(scp.position)
+		var danger := 0.0
+		if not seen:
+			danger = clampf(1.0 - d / 190.0, 0.0, 1.0)
+		var pulse: float = 0.55 + 0.45 * sin(float(Time.get_ticks_msec()) / 210.0)
+		vignette.modulate = Color(0.62, 0.05, 0.05, danger * danger * 0.9 * pulse)
+
+	shake_amt = maxf(0.0, shake_amt - delta * 9.0)
+	if cam:
+		cam.offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * shake_amt
 
 	if say_timer > 0.0:
 		say_timer -= delta
