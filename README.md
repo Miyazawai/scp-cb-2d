@@ -2,7 +2,11 @@
 
 把《SCP – Containment Breach》的体验做成**像素俯视 2D** 的免费同人游戏。开源、非商业。
 
-![demo](docs/images/demo.png)
+![demo](docs/images/encounter.png)
+
+*手电照住它，它不能动。关灯、眨眼、或者把光挪开——它就换位置了。*
+
+![layout](docs/images/demo.png)
 
 > 状态：**可玩 demo（垂直切片）**。只有一处手工搭建的设施区段，用于验证核心机制是否成立：黑暗里的手电、看不见就动的东西、会耗尽的眼睛。
 

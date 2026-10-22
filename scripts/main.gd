@@ -51,7 +51,9 @@ func _make_grid() -> void:
 		grid.append(row)
 	_carve(2, 2, 9, 7)      # A: start room
 	_carve(10, 4, 17, 5)    # corridor 1
-	_carve(18, 2, 27, 9)    # B: keycard + 173
+	_carve(12, 6, 13, 6)    # connector down
+	_carve(11, 7, 15, 10)   # side room (keycard)
+	_carve(18, 2, 27, 9)    # B: 173 past the door
 	_carve(22, 10, 23, 17)  # corridor 2
 	_carve(16, 18, 29, 23)  # C: exit room
 	grid[4][17] = "D"
@@ -140,17 +142,18 @@ func _build_floor() -> void:
 	var root := Node2D.new()
 	root.name = "Floor"
 	add_child(root)
-	var rects := [
-		Rect2(2 * TILE, 2 * TILE, 8 * TILE, 6 * TILE),
-		Rect2(10 * TILE, 4 * TILE, 8 * TILE, 2 * TILE),
-		Rect2(18 * TILE, 2 * TILE, 10 * TILE, 8 * TILE),
-		Rect2(22 * TILE, 10 * TILE, 2 * TILE, 8 * TILE),
-		Rect2(16 * TILE, 18 * TILE, 14 * TILE, 6 * TILE),
-	]
-	for r in rects:
-		root.add_child(_quad(r, tex, Color.WHITE, -2))
+	for y in MAP_H:
+		var x := 0
+		while x < MAP_W:
+			if grid[y][x] != "#":
+				var x0 := x
+				while x < MAP_W and grid[y][x] != "#":
+					x += 1
+				var rect := Rect2(x0 * TILE, y * TILE, (x - x0) * TILE, TILE)
+				root.add_child(_quad(rect, tex, Color.WHITE, -2))
+			else:
+				x += 1
 
-	# exit pad
 	var exit_pad := _quad(Rect2(28 * TILE, 18 * TILE, 2 * TILE, 6 * TILE), tex, Color("2e6b3c"), -1, false)
 	root.add_child(exit_pad)
 	exit_zone = Rect2(28 * TILE, 18 * TILE, 2 * TILE, 6 * TILE)
@@ -255,6 +258,7 @@ func _build_lights() -> void:
 	var tex := _radial_texture(128, 1.5)
 	var spots := [
 		Vector2(5.5 * TILE, 4.5 * TILE), Vector2(13.5 * TILE, 4.5 * TILE),
+		Vector2(13.0 * TILE, 8.5 * TILE),
 		Vector2(21.5 * TILE, 4.0 * TILE), Vector2(25.0 * TILE, 8.0 * TILE),
 		Vector2(22.5 * TILE, 12.0 * TILE), Vector2(22.5 * TILE, 16.0 * TILE),
 		Vector2(20.0 * TILE, 20.0 * TILE), Vector2(26.5 * TILE, 21.5 * TILE),
@@ -319,12 +323,12 @@ func _spawn_scp() -> void:
 	scp = Node2D.new()
 	scp.name = "SCP-173"
 	scp.set_script(preload("res://scripts/scp173.gd"))
-	scp.position = Vector2(21 * TILE + 8, 7 * TILE + 8)
+	scp.position = Vector2(19 * TILE + 8, 4 * TILE + 8)
 	add_child(scp)
 	scp.setup(player)
 
 func _spawn_card() -> void:
-	card_pos = Vector2(24 * TILE + 8, 3 * TILE + 8)
+	card_pos = Vector2(13 * TILE + 8, 9 * TILE + 8)
 	card_node = Node2D.new()
 	card_node.name = "Keycard"
 	card_node.set_script(preload("res://scripts/keycard.gd"))
