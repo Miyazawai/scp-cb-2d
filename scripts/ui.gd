@@ -21,6 +21,8 @@ var blink_fill: ColorRect = null
 var batt_fill: ColorRect = null
 var blink_label: Label = null
 var light_label: Label = null
+var stam_label: Label = null
+var stam_fill: ColorRect = null
 var card_label: Label = null
 var obj_label: Label = null
 var prompt_label: Label = null
@@ -49,6 +51,12 @@ var dead_hint: Label = null
 var e_title: Label = null
 var e_sub: Label = null
 var e_hint: Label = null
+var inv_layer: Control = null
+var inv_title: Label = null
+var inv_hint: Label = null
+var inv_slots: Array = []
+var inv_boxes: Array = []
+var inv_sel := -1
 
 var obj_key := ""
 
@@ -79,6 +87,7 @@ func _ready() -> void:
 	_build_doc()
 	_build_dead()
 	_build_end()
+	_build_inv()
 
 	blink_overlay = ColorRect.new()
 	blink_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -159,25 +168,28 @@ func _build_hud() -> void:
 	hud.add_child(top_bar)
 
 	var bot_bar := TextureRect.new()
-	bot_bar.texture = _gradient(4, 54, 0.0, 0.78)
-	bot_bar.position = Vector2(0, 216)
-	bot_bar.size = Vector2(480, 54)
+	bot_bar.texture = _gradient(4, 74, 0.0, 0.80)
+	bot_bar.position = Vector2(0, 196)
+	bot_bar.size = Vector2(480, 74)
 	bot_bar.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	bot_bar.stretch_mode = TextureRect.STRETCH_SCALE
 	bot_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(bot_bar)
 
 	blink_label = label("", 12, COL_DIM)
-	blink_label.position = Vector2(10, 218)
+	blink_label.position = Vector2(10, 200)
 	hud.add_child(blink_label)
-
-	blink_fill = _bar(Vector2(10, 234), 76, Color("7fb2d6"))
+	blink_fill = _bar(Vector2(10, 214), 76, Color("7fb2d6"))
 
 	light_label = label("", 12, COL_DIM)
-	light_label.position = Vector2(10, 242)
+	light_label.position = Vector2(10, 222)
 	hud.add_child(light_label)
+	batt_fill = _bar(Vector2(10, 236), 76, Color("d9a441"))
 
-	batt_fill = _bar(Vector2(10, 258), 76, Color("d9a441"))
+	stam_label = label("", 12, COL_DIM)
+	stam_label.position = Vector2(10, 244)
+	hud.add_child(stam_label)
+	stam_fill = _bar(Vector2(10, 258), 76, Color("8fd08a"))
 
 	card_label = label("", 12, COL_DIM)
 	card_label.position = Vector2(300, 6)
@@ -352,11 +364,83 @@ func _build_end() -> void:
 	end_layer.add_child(e_hint)
 	end_layer.visible = false
 
+func _build_inv() -> void:
+	inv_layer = Control.new()
+	inv_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	inv_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(inv_layer)
+
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.01, 0.012, 0.016, 0.86)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inv_layer.add_child(dim)
+
+	var panel := ColorRect.new()
+	panel.position = Vector2(70, 56)
+	panel.size = Vector2(340, 160)
+	panel.color = Color(0.055, 0.06, 0.07, 0.99)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inv_layer.add_child(panel)
+
+	var edge := ColorRect.new()
+	edge.position = Vector2(70, 56)
+	edge.size = Vector2(340, 2)
+	edge.color = Color(0.85, 0.72, 0.35, 0.9)
+	edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inv_layer.add_child(edge)
+
+	inv_title = label('', 12, COL_AMBER)
+	inv_title.position = Vector2(82, 66)
+	inv_layer.add_child(inv_title)
+
+	for i in 8:
+		var col := i % 4
+		var row := int(i / 4)
+		var bx := 82 + col * 82
+		var by := 92 + row * 56
+		var box := ColorRect.new()
+		box.position = Vector2(bx, by)
+		box.size = Vector2(76, 50)
+		box.color = Color(0.09, 0.10, 0.12, 0.95)
+		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		inv_layer.add_child(box)
+		inv_boxes.append(box)
+		var l := label('', 12, COL_TEXT)
+		l.position = Vector2(bx + 5, by + 5)
+		l.size = Vector2(68, 40)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		inv_layer.add_child(l)
+		inv_slots.append(l)
+
+	inv_hint = label('', 12, COL_DIM)
+	inv_hint.position = Vector2(82, 198)
+	inv_layer.add_child(inv_hint)
+	inv_layer.visible = false
+
+func show_inv(entries: Array, sel: int) -> void:
+	inv_sel = sel
+	for i in 8:
+		var l: Label = inv_slots[i]
+		var box: ColorRect = inv_boxes[i]
+		if i < entries.size():
+			var e: Dictionary = entries[i]
+			var suffix := '' if int(e.get('count', 1)) <= 1 else ' x%d' % int(e.count)
+			l.text = '%d %s%s' % [i + 1, String(e.name), suffix]
+		else:
+			l.text = ''
+		box.color = Color(0.16, 0.14, 0.07, 0.95) if i == sel else Color(0.09, 0.10, 0.12, 0.95)
+	inv_layer.visible = true
+
+func hide_inv() -> void:
+	inv_layer.visible = false
+
 # ---------------------------------------------------------------- text
 
 func refresh() -> void:
 	blink_label.text = I18n.t("ui_blink")
 	light_label.text = I18n.t("ui_light")
+	stam_label.text = I18n.t("ui_stamina")
 	t_title.text = I18n.t("title_name")
 	t_sub.text = I18n.t("title_sub")
 	t_press.text = I18n.t("title_press")
@@ -369,12 +453,16 @@ func refresh() -> void:
 	e_title.text = I18n.t("end_title")
 	e_sub.text = I18n.t("end_sub")
 	e_hint.text = I18n.t("end_hint")
+	inv_title.text = I18n.t('inv_title')
+	inv_hint.text = I18n.t('inv_hint')
 	if obj_key != "":
 		obj_label.text = I18n.t(obj_key)
 
-func tick(delta: float, blink_ratio: float, battery_ratio: float, card: int, eyes_open: bool, danger: float) -> void:
+func tick(delta: float, blink_ratio: float, battery_ratio: float, stamina_ratio: float, card: int, eyes_open: bool, danger: float) -> void:
 	blink_fill.size.x = 74.0 * clampf(blink_ratio, 0.0, 1.0)
 	batt_fill.size.x = 74.0 * clampf(battery_ratio, 0.0, 1.0)
+	stam_fill.size.x = 74.0 * clampf(stamina_ratio, 0.0, 1.0)
+	stam_fill.color = Color("d05a48") if stamina_ratio < 0.22 else Color("8fd08a")
 
 	if blink_ratio < 0.18:
 		var w: float = 0.35 + 0.65 * absf(sin(Time.get_ticks_msec() / 90.0))

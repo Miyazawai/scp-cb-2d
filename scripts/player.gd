@@ -13,6 +13,9 @@ const BLINK_INTERVAL := 20.0
 const BLINK_TIME := 0.35
 const BATTERY_DRAIN := 0.32
 const OBSERVE_RANGE := 150.0
+const STAMINA_MAX := 100.0
+const STAMINA_DRAIN := 32.0
+const STAMINA_REGEN := 24.0
 
 var facing := Vector2.RIGHT
 var move_dir := Vector2.DOWN
@@ -20,6 +23,8 @@ var eyes_open := true
 var blink_timer := BLINK_INTERVAL
 var blink_left := 0.0
 var battery := 100.0
+var stamina := 100.0
+var stamina_delay := 0.0
 var light_on := true
 var card_level := 0
 var freeze := false
@@ -43,6 +48,8 @@ func _ready() -> void:
 
 func reset_state() -> void:
 	battery = 100.0
+	stamina = STAMINA_MAX
+	stamina_delay = 0.0
 	blink_timer = BLINK_INTERVAL
 	blink_left = 0.0
 	eyes_open = true
@@ -136,9 +143,18 @@ func _physics_process(delta: float) -> void:
 	if Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT):
 		dir.x += 1.0
 	dir = dir.normalized()
-	var sprint := Input.is_physical_key_pressed(KEY_SHIFT) and battery > 0.0
+	var want_sprint := Input.is_physical_key_pressed(KEY_SHIFT) and dir != Vector2.ZERO
+	var sprint := want_sprint and stamina > 1.0
 	velocity = dir * (RUN if sprint else WALK)
 	move_and_slide()
+
+	if want_sprint and sprint:
+		stamina = maxf(0.0, stamina - STAMINA_DRAIN * delta)
+		stamina_delay = 0.65
+	elif stamina_delay > 0.0:
+		stamina_delay -= delta
+	else:
+		stamina = minf(STAMINA_MAX, stamina + STAMINA_REGEN * delta)
 
 	if dir != Vector2.ZERO:
 		move_dir = dir
@@ -186,6 +202,7 @@ func _process(delta: float) -> void:
 
 	if light_on:
 		battery = maxf(0.0, battery - BATTERY_DRAIN * delta)
+		stamina = minf(STAMINA_MAX, stamina + STAMINA_REGEN * 0.4 * delta)
 		if battery <= 0.0:
 			light_on = false
 
@@ -228,6 +245,9 @@ func _do_blink() -> void:
 func blink_ratio() -> float:
 	return clampf(blink_timer / BLINK_INTERVAL, 0.0, 1.0)
 
+func stamina_ratio() -> float:
+	return clampf(stamina / STAMINA_MAX, 0.0, 1.0)
+
 func battery_ratio() -> float:
 	return clampf(battery / 100.0, 0.0, 1.0)
 
@@ -238,17 +258,17 @@ func _is_lit(p: Vector2) -> bool:
 	return false
 
 func can_see(target: Vector2) -> bool:
+	# Looking at it means pointing the beam at it. Ambient light alone does not
+	# count: being in a lit room must not make you safe with your back turned.
 	if freeze or not eyes_open:
+		return false
+	if not light_on or battery <= 0.0:
 		return false
 	var to_target := target - global_position
 	var dist := to_target.length()
-	if dist > OBSERVE_RANGE:
+	if dist > FLASH_RANGE:
 		return false
-	var in_beam := false
-	if light_on and battery > 0.0 and dist <= FLASH_RANGE:
-		if absf(angle_difference(facing.angle(), to_target.angle())) <= deg_to_rad(FLASH_HALF_ANGLE):
-			in_beam = true
-	if not in_beam and not _is_lit(target):
+	if absf(angle_difference(facing.angle(), to_target.angle())) > deg_to_rad(FLASH_HALF_ANGLE):
 		return false
 	var space := get_world_2d().direct_space_state
 	var q := PhysicsRayQueryParameters2D.create(global_position, target, 1)

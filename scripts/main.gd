@@ -9,7 +9,7 @@ const TILE := 16
 const MAP_W := 40
 const MAP_H := 32
 
-enum St { TITLE, PLAY, PAUSE, DOC, DEAD, END }
+enum St { TITLE, PLAY, PAUSE, DOC, DEAD, END, INV }
 
 var grid: Array = []
 var st: int = St.TITLE
@@ -27,8 +27,11 @@ var flicker: Array = []
 var triggers: Array = []
 var cm_node: CanvasModulate = null
 var burst := 0.0
+var hl_layer: CanvasLayer = null
+var hl: Sprite2D = null
 
 var card_level := 0
+var inv: Array = []
 var spawn_pos := Vector2.ZERO
 var save_pos := Vector2.ZERO
 var scp_spawn := Vector2.ZERO
@@ -59,6 +62,7 @@ func _ready() -> void:
 	_spawn_scp()
 	_build_ui()
 	_build_post()
+	_build_highlight()
 
 	st = St.TITLE
 	player.freeze = true
@@ -121,6 +125,35 @@ func _apply_args() -> void:
 			" snd=", Assets.snd("amb_loop.wav") != null)
 		get_tree().quit()
 		return
+	if a.has("--shot8"):
+		shot_mode = true
+		st = St.INV
+		ui.show_title(false)
+		ui.fade_to(0.0, 0.01)
+		player.position = Vector2(21.0 * TILE, 16.2 * TILE)
+		scp.position = Vector2(27.0 * TILE, 4.5 * TILE)
+		scp.hold = true
+		card_level = 1
+		_inv_add("battery")
+		_inv_add("battery")
+		_inv_add("card1")
+		ui.show_inv(_inv_entries(), 0)
+		_shot("demo_shot8.png")
+		return
+	if a.has("--shot7"):
+		shot_mode = true
+		st = St.PLAY
+		ui.show_title(false)
+		ui.fade_to(0.0, 0.01)
+		player.use_mouse_aim = false
+		player.facing = Vector2.UP
+		player.position = Vector2(21.0 * TILE, 16.2 * TILE)
+		scp.position = Vector2(27.0 * TILE, 4.5 * TILE)
+		scp.hold = true
+		card_level = 1
+		ui.set_objective("obj_checkpoint")
+		_shot("demo_shot7.png")
+		return
 	if a.has("--start"):
 		_shot_after_start()
 		return
@@ -182,6 +215,9 @@ func _shot_after_start() -> void:
 
 func _shot(fname: String) -> void:
 	await get_tree().create_timer(1.4).timeout
+	_update_prompt()
+	_update_highlight()
+	ui.tick(0.0, player.blink_ratio(), player.battery_ratio(), player.stamina_ratio(), card_level, player.eyes_open, 0.0)
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
 	img.save_png(ProjectSettings.globalize_path("res://" + fname))
@@ -442,7 +478,9 @@ func _build_items() -> void:
 		"title_key": "doc_title",
 		"body_key": "doc_body"
 	}))
-	items.append(_make_item(Vector2(27.0, 18.0) * TILE, "save", {"label": "CHECKPOINT"}))
+	items.append(_make_item(Vector2(27.0, 18.0) * TILE, "save", {}))
+	items.append(_make_item(Vector2(7.5, 3.5) * TILE, "battery", {}))
+	items.append(_make_item(Vector2(8.5, 19.0) * TILE, "battery", {}))
 
 func _make_item(pos: Vector2, kind: String, data: Dictionary) -> Dictionary:
 	var node := Node2D.new()
@@ -450,9 +488,11 @@ func _make_item(pos: Vector2, kind: String, data: Dictionary) -> Dictionary:
 	node.z_index = 2
 	add_child(node)
 	var it := {"pos": pos, "kind": kind, "data": data, "taken": false, "node": node}
-	if kind == "card":
-		node.set_script(load("res://scripts/keycard.gd"))
-		node.call("setup", data)
+	if kind == "card" or kind == "battery":
+		node.set_script(load("res://scripts/pickup.gd"))
+		var d2: Dictionary = data.duplicate()
+		d2["kind"] = kind
+		node.call("setup", d2)
 	return it
 
 func _build_doors() -> void:
@@ -465,6 +505,7 @@ func _make_door(cells: Array, level: int) -> Dictionary:
 	body.collision_mask = 0
 	add_child(body)
 	var panels := []
+	var shapes := []
 	for cell in cells:
 		var pos := Vector2(cell.x * TILE + 8, cell.y * TILE + 8)
 		var cs := CollisionShape2D.new()
@@ -473,6 +514,7 @@ func _make_door(cells: Array, level: int) -> Dictionary:
 		cs.shape = shape
 		cs.position = pos
 		body.add_child(cs)
+		shapes.append(cs)
 		var art := "tiles/door_panel.png" if Assets.has_art("tiles/door_panel.png") else ""
 		if art != "":
 			var s := Sprite2D.new()
@@ -486,8 +528,27 @@ func _make_door(cells: Array, level: int) -> Dictionary:
 			panels.append(_quad(Rect2(pos - Vector2(8, 8), Vector2(16, 16)), Color("8a5a22"), 2))
 		if Assets.has_art("tiles/door_frame.png"):
 			_sprite("tiles/door_frame.png", pos, 1)
-	return {"cells": cells, "level": level, "body": body, "panels": panels, "open": false,
+	return {"cells": cells, "level": level, "body": body, "panels": panels, "shapes": shapes,
+			"open": false, "force_t": 0.0,
 			"center": Vector2(cells[0].x * TILE + 8, cells[0].y * TILE + 8)}
+
+func _set_door(d, open: bool) -> void:
+	if d.open == open:
+		return
+	d.open = open
+	for cs in d.shapes:
+		cs.set_deferred("disabled", open)
+	for p in d.panels:
+		if p is Sprite2D:
+			var key := "tiles/door_panel_open.png" if open else "tiles/door_panel.png"
+			if Assets.has_art(key):
+				p.texture = Assets.tex(key)
+		elif p is Polygon2D:
+			p.color = Color("2f6b3a") if open else Color("8a5a22")
+	if open:
+		audio.play("door_hiss.wav", -4.0)
+	else:
+		audio.play("door_close.wav", -4.0)
 
 func _build_triggers() -> void:
 	triggers.append({"rect": Rect2(12 * TILE, 2 * TILE, 3 * TILE, 8 * TILE), "kind": "corridor", "fired": false})
@@ -621,6 +682,68 @@ func _on_scp_stepped(dist: float) -> void:
 
 # ---------------------------------------------------------------- per-frame
 
+func _ring_texture(px: int, r: float, w: float) -> ImageTexture:
+	var img := Image.create(px, px, false, Image.FORMAT_RGBA8)
+	var c := px * 0.5
+	for y in px:
+		for x in px:
+			var dd := Vector2(x + 0.5 - c, y + 0.5 - c).length()
+			var a := 0.0
+			if absf(dd - r) <= w:
+				a = 1.0 - absf(dd - r) / w
+			img.set_pixel(x, y, Color(1, 1, 1, a * a))
+	return ImageTexture.create_from_image(img)
+
+func _build_highlight() -> void:
+	hl_layer = CanvasLayer.new()
+	hl_layer.layer = 2
+	hl_layer.follow_viewport_enabled = true
+	add_child(hl_layer)
+	hl = Sprite2D.new()
+	hl.texture = _ring_texture(48, 15.0, 2.2)
+	hl.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	hl.visible = false
+	hl_layer.add_child(hl)
+
+func _update_highlight() -> void:
+	if hl == null:
+		return
+	if st != St.PLAY or prompt.is_empty() or not prompt.has("pos"):
+		hl.visible = false
+		return
+	hl.visible = true
+	hl.position = prompt["pos"] + Vector2(0, 2)
+	var t := Time.get_ticks_msec() / 1000.0
+	var k := 0.5 + 0.5 * absf(sin(t * 3.4))
+	hl.scale = Vector2.ONE * (1.0 + 0.06 * sin(t * 3.4))
+	var c := Color("f0c76b")
+	if prompt.kind == "door":
+		var d = prompt.ref
+		if d.open:
+			c = Color("6fd08a")
+		elif card_level >= d.level:
+			c = Color("f0c76b")
+		else:
+			c = Color("d04848")
+	hl.modulate = Color(c.r, c.g, c.b, 0.35 + 0.55 * k)
+
+func _door_force(delta: float) -> void:
+	# 173 does not need a card: it simply walks through a closed door.
+	for d in doors:
+		if d.open:
+			d.force_t = 0.0
+			continue
+		if scp and scp.active and scp.position.distance_to(d.center) < 30.0:
+			d.force_t += delta
+			if d.force_t > 0.8:
+				d.force_t = 0.0
+				_set_door(d, true)
+				audio.play("door_close.wav", -1.0)
+				audio.play("scp_step.wav", -1.0)
+				_on_scp_stepped(0.0)
+		else:
+			d.force_t = 0.0
+
 func _process(delta: float) -> void:
 	if shot_mode:
 		pass
@@ -634,8 +757,11 @@ func _process(delta: float) -> void:
 			St.PLAY:
 				_update_prompt()
 				_check_triggers()
+				_door_force(delta)
 			St.TITLE:
 				ui.show_title(true)
+
+	_update_highlight()
 
 	if player == null:
 		return
@@ -689,7 +815,7 @@ func _process(delta: float) -> void:
 		else:
 			audio.set_heartbeat(false)
 
-	ui.tick(delta, player.blink_ratio(), player.battery_ratio(), card_level, player.eyes_open, danger)
+	ui.tick(delta, player.blink_ratio(), player.battery_ratio(), player.stamina_ratio(), card_level, player.eyes_open, danger)
 
 # ---------------------------------------------------------------- interaction
 
@@ -697,13 +823,17 @@ func _update_prompt() -> void:
 	prompt = {}
 	var best := 34.0
 	for d in doors:
-		if d.open:
-			continue
 		var dist: float = player.position.distance_to(d.center)
-		if dist < best and dist < 40.0:
+		if dist < best and dist < 44.0:
 			best = dist
-			var txt := I18n.t("prompt_open") if card_level >= d.level else I18n.t("prompt_locked") % d.level
-			prompt = {"kind": "door", "ref": d, "text": txt}
+			var txt := ""
+			if d.open:
+				txt = I18n.t("prompt_close")
+			elif card_level >= d.level:
+				txt = I18n.t("prompt_open")
+			else:
+				txt = I18n.t("prompt_locked") % d.level
+			prompt = {"kind": "door", "ref": d, "text": txt, "pos": d.center}
 	for it in items:
 		if it.taken:
 			continue
@@ -713,9 +843,10 @@ func _update_prompt() -> void:
 			var txt := ""
 			match it.kind:
 				"card": txt = I18n.t("prompt_take") % I18n.t(it.data.label_key)
+				"battery": txt = I18n.t("prompt_take_b") % I18n.t("item_battery")
 				"doc": txt = I18n.t("prompt_read")
 				"save": txt = I18n.t("prompt_save")
-			prompt = {"kind": it.kind, "ref": it, "text": txt}
+			prompt = {"kind": it.kind, "ref": it, "text": txt, "pos": it.pos}
 	if prompt.is_empty():
 		ui.set_prompt("")
 	else:
@@ -727,8 +858,10 @@ func _interact() -> void:
 	match prompt.kind:
 		"door":
 			var d = prompt.ref
-			if card_level >= d.level:
-				_open_door(d)
+			if d.open:
+				_set_door(d, false)
+			elif card_level >= d.level:
+				_set_door(d, true)
 			else:
 				audio.play("keycard_deny.wav", -3.0)
 				ui.set_prompt(I18n.t("prompt_locked") % d.level)
@@ -737,6 +870,7 @@ func _interact() -> void:
 			it.taken = true
 			it.node.queue_free()
 			card_level = maxi(card_level, int(it.data.level))
+			_inv_add("card%d" % card_level)
 			audio.play("pickup.wav", -2.0)
 			ui.set_objective("obj_door1" if card_level == 1 else "obj_exit")
 		"doc":
@@ -744,21 +878,55 @@ func _interact() -> void:
 			player.freeze = true
 			ui.show_doc(I18n.t(prompt.ref.data.title_key), I18n.t(prompt.ref.data.body_key))
 			audio.play("pickup.wav", -8.0)
+		"battery":
+			var it2 = prompt.ref
+			it2.taken = true
+			it2.node.queue_free()
+			_inv_add("battery")
+			audio.play("pickup.wav", -2.0)
+			ui.say(I18n.t("say_battery"), 1.8)
 		"save":
 			save_pos = player.position
 			audio.play("keycard_beep.wav", -3.0)
 			ui.set_objective("obj_saved")
 
 func _open_door(d) -> void:
-	d.open = true
-	if d.body:
-		d.body.queue_free()
-	for p in d.panels:
-		if p is Sprite2D and Assets.has_art("tiles/door_panel_open.png"):
-			p.texture = Assets.tex("tiles/door_panel_open.png")
-		elif p is Polygon2D:
-			p.color = Color("2f6b3a")
-	audio.play("door_hiss.wav", -4.0)
+	_set_door(d, true)
+
+func _inv_add(id: String) -> void:
+	for e in inv:
+		if String(e.id) == id:
+			e.count += 1
+			return
+	inv.append({"id": id, "count": 1})
+
+func _inv_entries() -> Array:
+	var out: Array = []
+	for e in inv:
+		var nm := ""
+		match String(e.id):
+			"battery": nm = I18n.t("item_battery")
+			"card1": nm = I18n.t("item_card") % 1
+			"card2": nm = I18n.t("item_card") % 2
+			_: nm = String(e.id)
+		out.append({"name": nm, "count": int(e.count)})
+	return out
+
+func _inv_use(idx: int) -> void:
+	if idx < 0 or idx >= inv.size():
+		return
+	var e: Dictionary = inv[idx]
+	if String(e.id) != "battery":
+		ui.say(I18n.t("say_no_battery"), 1.2)
+		return
+	player.battery = minf(100.0, player.battery + 55.0)
+	e.count = int(e.count) - 1
+	audio.play("keycard_beep.wav", -4.0)
+	ui.say(I18n.t("say_use_battery"), 1.8)
+	if int(e.count) <= 0:
+		inv.erase(e)
+	if st == St.INV:
+		ui.show_inv(_inv_entries(), -1)
 
 func _check_triggers() -> void:
 	for t in triggers:
@@ -776,6 +944,19 @@ func _input(event: InputEvent) -> void:
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
 	var k: int = event.physical_keycode
+	if (k == KEY_I) and (st == St.PLAY or st == St.INV):
+		if st == St.PLAY:
+			st = St.INV
+			player.freeze = true
+			ui.show_inv(_inv_entries(), -1)
+		else:
+			st = St.PLAY
+			player.freeze = false
+			ui.hide_inv()
+		return
+	if k >= KEY_1 and k <= KEY_8 and (st == St.PLAY or st == St.INV):
+		_inv_use(k - KEY_1)
+		return
 	if k == KEY_L:
 		I18n.toggle()
 		ui.refresh()
@@ -798,6 +979,11 @@ func _input(event: InputEvent) -> void:
 				ui.show_pause(false)
 			elif k == KEY_Q:
 				get_tree().quit()
+		St.INV:
+			if k == KEY_ESCAPE:
+				st = St.PLAY
+				player.freeze = false
+				ui.hide_inv()
 		St.DOC:
 			if k == KEY_E or k == KEY_ESCAPE:
 				ui.hide_doc()

@@ -508,12 +508,12 @@ SCP173_IDLE = [
     "000000000000000000000000",
     "000000000000000000000000",
     "000000000111111000000000",
-    "000000001lmmmmn100000000",
-    "00000001lmmmmmn100000000",
-    "0000001l1mmmmmn100000000",
-    "0000001lmmmm1mn100000000",
-    "00000001mmmmnm1000000000",
-    "000000001mmnm10000000000",
+    "000000001mmmmmn100000000",
+    "00000001mmmmmmn100000000",
+    "0000001m1mmmmmn100000000",
+    "0000001mmmmm1mn100000000",
+    "00000001mmmmmm1000000000",
+    "000000001mmmm10000000000",
     "0000000001mm100000000000",
     "000000111111111110000000",
     "00001lmmmmmmmmmmmmn10000",
@@ -532,57 +532,57 @@ SCP173_IDLE = [
 ]
 
 SCP173_STEP = [
+    "000000000000000000000000",
+    "000000000000000000000000",
     "000000001111110000000000",
-    "00000011llllll1100000000",
-    "00001llllmmmmnnn10000000",
-    "00001lllmmm1nnnn10000000",
-    "0001llmmmmnn1nnm10000000",
-    "00001lmmmmn1nnnm10000000",
-    "000001mmmnnnnnm100000000",
-    "0000001mmnnnnm1000000000",
-    "000000001mmmm10000000000",
-    "000001111111111110000000",
-    "00001lll1mmmm1lll1000000",
-    "00001ll1mmmmmm1ll1000000",
-    "0001ll1mm1mmmm1ll1000000",
-    "0001ll1mmmmmmmm1ll100000",
-    "0001l1mmmmmmmmmm1l100000",
-    "001ll1mmmmmmmmmm1ll10000",
-    "001ll1mmmmmmmmmm1ll10000",
-    "001l1mmmmmmmmmmmm1l10000",
-    "001l1mmmm1001mmmm1l10000",
-    "00011mmmm1001mmmm1100000",
-    "000001mm1001mmmm10000000",
-    "00001lll1001llll10000000",
-    "0001llll1001lllll1000000",
-    "001llll100001lllll100000",
+    "00000001mmmmmn1000000000",
+    "0000001mmmmmmn1000000000",
+    "000001m1mmmmmn1000000000",
+    "000001mmmmm1mn1000000000",
+    "0000001mmmmmm10000000000",
+    "00000001mmmm100000000000",
+    "000000001mm1000000000000",
+    "000001111111111100000000",
+    "0001lmmmmmmmmmmmmn100000",
+    "001lmmmmmmmmmmmmmmb10000",
+    "001mm0mmmmmmmmnn0mm10000",
+    "001mm0mmmmm1mmnn0mm10000",
+    "001mm0mmmm2mmmnn0mm10000",
+    "01mmm0mmmmmmmmnn0mmm1000",
+    "01mm10mmmmmmmmnn01mm1000",
+    "01mm11mnnm001mnnm1mm1000",
+    "01mm10mmmmmmmmnn01mm1000",
+    "0000001mnm0001mnm0000000",
+    "000001mnm00001mnm0000000",
+    "00001mm1000001mnm0000000",
+    "00000000000001mmmm100000",
 ]
 
 SCP173_LUNGE = [
     "000000000000000000000000",
-    "000000000000000000000000",
-    "000000000000000000000000",
-    "000000000000000000000000",
-    "000000000000000000000000",
-    "000000000000000000000000",
-    "000000111111111111100000",
-    "000001mmmmmmmmmmmmm10000",
-    "000001mmmmmmmmmmmmmm1000",
-    "00001mmmmm111111mmmmm100",
-    "0001mmm01lmmmnnnn1mmmm10",
-    "001mmmm01l1mmnnnn1mmmmm1",
-    "001mmm001lmmmnnnn1mmmmm1",
-    "01mmmm001lmmmnnn1001mmm0",
-    "01mmmm001mmmmmnnn1000000",
-    "01mmm0001mmmmmnnn1000000",
-    "01mmmm001mmmmmnnn1000000",
-    "01mmmmm01mmmmmnnn1000000",
-    "01mmmmm01mmmmnnn10000000",
-    "01mmm101mmmmmmmmm1000000",
-    "0000001mmm00mmm100000000",
-    "0000001mmm00mmm100000000",
-    "000001mmmmm001mmmmm10000",
-    "000001lmmm1001lmmm100000",
+    "000000000000000000001110",
+    "00000000000000000001mmm1",
+    "0000000000001111111mmm10",
+    "000000000001mmmmmmmmm100",
+    "00000000001mmmmmmmmbm100",
+    "0000000011mmmmmmmmmmm100",
+    "00000001mmmmmmmmmmmm1000",
+    "0000001mmmmmmmmmmmm10000",
+    "000111mmmmmmmmmmmmm10000",
+    "001mmmm1mmmmmmmmmmm10000",
+    "001mmmm1mmmmmmmmmmm10000",
+    "01mmmm101mmmmmmmmmm10000",
+    "01mmmm10011mm1mmmm100000",
+    "1mmmm1000001mmmmmm100000",
+    "1mmmmm1000001m2mmm100000",
+    "1mlllc1011111mmmmmm10000",
+    "01111101mmmm11mmmm100000",
+    "0000001m2mm101mmmm100000",
+    "0000001mmmm101mmmm100000",
+    "000001mmmm1001mmmm100000",
+    "000001mmmm1001mmmm100000",
+    "00001mmmmm101mmmmmm10000",
+    "00001mmmmmm11mmmmmm10000",
 ]
 
 # ---------------------------------------------------------------------------
@@ -592,20 +592,20 @@ SCP173_LUNGE = [
 CORPSE_DCLASS = [
     "000000000000000000000000",
     "000000000000000000000000",
-    "000000000011110000000000",
-    "0000000011jjjj1100000000",
-    "00000111jjjjjjjj11000000",
-    "00001222jjjjjjjjj1100000",
-    "000122222jjjjjj111000000",
-    "000122222211111110000000",
-    "0011gg111111111111000000",
-    "01gghhgggggggg1111100000",
-    "01ghhhgggggggggggg110000",
-    "01gghhgggggg111111110000",
-    "001iigggggg1100111111000",
-    "00011ii11110000111111000",
-    "000001110000000011111000",
-    "000000000000000001110000",
+    "000111100000000000000000",
+    "001222210000000000000000",
+    "012333221111100000111000",
+    "1222jjjjggggg11001ggg100",
+    "1222jj11gghhhgg111gggg10",
+    "1222jjjgggghhhgggghhhh10",
+    "1ddddddggggghhhggggggg10",
+    "0111ddd11gggggghhhhhgg10",
+    "00001110011ggggiiiii2221",
+    "0011111111111gggggggg441",
+    "01bbbbbbbbbbbb1kkkgi2221",
+    "1bbbcccccccbbbbb1ggg4441",
+    "011bbbbbbbbbbbb11g222110",
+    "0001bbbbbbbbb11001444100",
 ]
 
 # ---------------------------------------------------------------------------
@@ -876,7 +876,7 @@ def build_preview(images: dict[str, Image.Image]) -> None:
     cols = 4
     COLS_W = CELL_W * cols
     W = M + LABEL_W + COLS_W + M
-    H = 334
+    H = 300
 
     img = Image.new("RGBA", (W, H), (*C_BG, 255))
     draw = ImageDraw.Draw(img)
@@ -886,8 +886,7 @@ def build_preview(images: dict[str, Image.Image]) -> None:
     draw.line([(0, 17), (W, 17)], fill=PALETTE["4"])
     draw_text(draw, M, 5, "SCP FACILITY / CHARACTER SHEET", C_TEXT)
     draw_text(draw, W - M - text_width("4X"), 5, "4X", C_ACCENT_HI)
-    draw_text(draw, M, 21, "D-CLASS D-9341   SCP-173   CORPSE   MTF", C_DIM)
-    draw_text(draw, M, 30, "ROWS = FACING    COLUMNS = ANIMATION FRAME", C_MUTE)
+    draw_text(draw, M, 23, "ROWS = FACING   /   COLUMNS = FRAME", C_MUTE)
 
     players = [
         ("PLAYER DOWN", "player_down"),
@@ -927,7 +926,7 @@ def build_preview(images: dict[str, Image.Image]) -> None:
 
     # SCP-173
     draw.rectangle([0, row_y + 1, W - 1, row_y + 1], fill=PALETTE["3"])
-    draw_text(draw, M, row_y + 5, "SCP-173 / CONCRETE", C_ACCENT_HI)
+    draw_text(draw, M, row_y + 5, "SCP-173", C_ACCENT_HI)
     draw_text(draw, M, row_y + 15, "NO FACE / NO EYES", C_MUTE)
     scp = [("scp173_idle", "I"), ("scp173_step", "S"), ("scp173_lunge", "L")]
     for i, (name, tick) in enumerate(scp):

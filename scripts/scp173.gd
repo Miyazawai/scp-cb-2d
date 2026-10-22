@@ -92,7 +92,9 @@ func _step() -> void:
 		var target: Vector2 = global_position + d * travel
 		var q := PhysicsRayQueryParameters2D.create(global_position, target, 1)
 		if space.intersect_ray(q).is_empty():
+			var old := global_position
 			global_position = target
+			_ghost(old)
 			_flash = 1.0
 			if _sfx and not _sfx.playing:
 				_sfx.play()
@@ -100,6 +102,22 @@ func _step() -> void:
 			if global_position.distance_to(player.global_position) < KILL_DIST:
 				player.die()
 			return
+
+func _ghost(at: Vector2) -> void:
+	# a fading afterimage where it used to stand: the only tell that it moved
+	if _sprite == null:
+		return
+	var g := Sprite2D.new()
+	g.texture = _sprite.texture
+	g.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	g.offset = Vector2(0, -12)
+	g.position = to_local(at)
+	g.z_index = 2
+	g.modulate = Color(0.75, 0.78, 0.85, 0.5)
+	add_child(g)
+	var tw := create_tween()
+	tw.tween_property(g, "modulate:a", 0.0, 0.45)
+	tw.tween_callback(g.queue_free)
 
 func _make_scrape() -> AudioStreamWAV:
 	var rate := 22050
