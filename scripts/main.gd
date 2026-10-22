@@ -46,6 +46,7 @@ var breakers: Dictionary = {}
 var powered := false
 var settings_sel := 0
 var started_once := false
+var doc_back := St.PLAY
 var captions_on := true
 var master_volume := 80
 
@@ -1734,6 +1735,7 @@ func _interact() -> void:
 			if meta.has("doc_id"):
 				docs_found[String(meta["doc_id"])] = true
 			st = St.DOC
+			doc_back = St.PLAY
 			player.freeze = true
 			ui.show_doc(I18n.t(prompt.ref.data.title_key), I18n.t(prompt.ref.data.body_key))
 			audio.play("pickup.wav", -8.0)
@@ -1896,6 +1898,11 @@ func _input(event: InputEvent) -> void:
 				_start_game()
 			elif k == KEY_S:
 				_open_settings()
+			elif k == KEY_C:
+				st = St.DOC
+				doc_back = St.TITLE
+				ui.show_title(false)
+				ui.show_doc(I18n.t("credits_title"), I18n.t("credits_body"))
 		St.PLAY:
 			if k == KEY_E:
 				_interact()
@@ -1949,8 +1956,11 @@ func _input(event: InputEvent) -> void:
 		St.DOC:
 			if k == KEY_E or k == KEY_ESCAPE:
 				ui.hide_doc()
-				st = St.PLAY
-				player.freeze = false
+				st = doc_back
+				if doc_back == St.PLAY:
+					player.freeze = false
+				elif doc_back == St.TITLE:
+					ui.show_title(true)
 		St.END:
 			if k == KEY_ESCAPE:
 				get_tree().quit()
