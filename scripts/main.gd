@@ -9,7 +9,7 @@ const TILE := 16
 var MAP_W := 40
 var MAP_H := 32
 
-enum St { TITLE, PLAY, PAUSE, DOC, DEAD, END, INV }
+enum St { TITLE, PLAY, PAUSE, DOC, DEAD, END, INV, MACHINE }
 
 var grid: Array = []
 var level: Dictionary = {}
@@ -17,6 +17,7 @@ var st: int = St.TITLE
 
 var player: CharacterBody2D = null
 var scp: Node2D = null
+var scps: Array = []
 var cam: Camera2D = null
 var ui: CanvasLayer = null
 var audio: Node = null
@@ -39,6 +40,7 @@ var docs_found: Dictionary = {}
 var has_nvg := false
 var breakers: Dictionary = {}
 var powered := false
+var deny_t := 0.0
 var _sc_fail := 0
 var spawn_pos := Vector2.ZERO
 var save_pos := Vector2.ZERO
@@ -426,6 +428,71 @@ func _scenarios() -> Dictionary:
 			{ "do": "wait", "secs": 9.0 },
 			{ "do": "assert_deaths", "label": "the old man reaches a player who stands still" },
 		],
+		"act2_966": [
+			{ "do": "teleport", "to": [6.0, 4.5] },
+			{ "do": "wait", "secs": 0.5 },
+			{ "do": "teleport", "to": [16.0, 6.5] },
+			{ "do": "wait", "secs": 4.0 },
+			{ "do": "assert_deaths", "label": "966 finds you even when you cannot see it" },
+		],
+		"act2_895": [
+			{ "do": "teleport", "to": [26.5, 9.5] },
+			{ "do": "face", "dir": "up" },
+			{ "do": "wait", "secs": 0.6 },
+			{ "do": "assert_contaminated", "label": "watching 895 from outside the monitor room contaminates" },
+			{ "do": "wait", "secs": 3.4 },
+			{ "do": "teleport", "to": [26.5, 7.0] },
+			{ "do": "wait", "secs": 0.6 },
+			{ "do": "assert_state", "value": "PLAY", "label": "monitor room is survivable" },
+		],
+		"act2_372": [
+			{ "do": "teleport", "to": [16.0, 5.5] },
+			{ "do": "face", "dir": "right" },
+			{ "do": "wait", "secs": 1.5 },
+			{ "do": "face", "dir": "left" },
+			{ "do": "wait", "secs": 0.4 },
+			{ "do": "assert_scp_seen", "value": "1", "type": "372", "label": "facing it counts as seeing it" },
+		],
+		"act2_914": [
+			{ "do": "set_card", "value": "1" },
+			{ "do": "use_914", "value": "2" },
+			{ "do": "assert_card", "value": "2", "label": "rough card refined into level 2" },
+			{ "do": "use_914", "value": "2" },
+			{ "do": "assert_card", "value": "3", "label": "level 2 refined into level 3" },
+			{ "do": "use_914", "value": "3" },
+			{ "do": "assert_card", "value": "0", "label": "very fine setting destroys the card" },
+		],
+		"act2_breakers": [
+			{ "do": "teleport", "to": [25.0, 14.0] },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
+			{ "do": "teleport", "to": [5.0, 13.0] },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
+			{ "do": "teleport", "to": [19.0, 21.0] },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
+			{ "do": "wait", "secs": 0.3 },
+			{ "do": "assert_powered", "label": "three breakers restore partial power" },
+		],
+		"act2_exit": [
+			{ "do": "teleport", "to": [25.0, 14.0] },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
+			{ "do": "teleport", "to": [5.0, 13.0] },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
+			{ "do": "teleport", "to": [19.0, 21.0] },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
+			{ "do": "set_card", "value": "3" },
+			{ "do": "teleport", "to": [24.0, 20.5] },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
+			{ "do": "teleport", "to": [29.5, 21.5] },
+			{ "do": "wait", "secs": 2.8 },
+			{ "do": "assert_state", "value": "END", "label": "act II ends at the lift" },
+		],
 		"fixture_spawn": [
 			{ "do": "near", "to": [2.5, 2.5], "tol": 24.0, "label": "booted into the level passed by --level" },
 		],
@@ -469,6 +536,7 @@ func _scenario_run(name: String) -> void:
 	docs_found.clear()
 	st = St.PLAY
 	player.freeze = false
+	player.use_mouse_aim = false
 	player.reset_state()
 	ui.show_title(false)
 	ui.fade_to(0.0, 0.01)
@@ -503,6 +571,28 @@ func _scenario_run(name: String) -> void:
 			"assert_card":
 				_sc_ok(card_level == int(step["value"]), String(step.get("label", "card")),
 					"got level %d want %s" % [card_level, step["value"]])
+			"face":
+				match String(step.get("dir", "right")):
+					"up": player.facing = Vector2.UP
+					"down": player.facing = Vector2.DOWN
+					"left": player.facing = Vector2.LEFT
+					_: player.facing = Vector2.RIGHT
+			"set_card":
+				card_level = int(step["value"])
+			"use_914":
+				_use_914(int(step["value"]))
+			"assert_powered":
+				_sc_ok(powered, String(step.get("label", "powered")), "powered=%s" % str(powered))
+			"assert_contaminated":
+				_sc_ok(player.contamin_t > 0.0, String(step.get("label", "contaminated")),
+					"contamin_t=%.1f" % player.contamin_t)
+			"assert_scp_seen":
+				var want_t := String(step.get("type", "372"))
+				var got := -1
+				for e in scps:
+					if String(e["type"]) == want_t:
+						got = int(e["node"].call("get_seen"))
+				_sc_ok(got >= int(step["value"]), String(step.get("label", "scp seen")), "seen=%d" % got)
 			"assert_deaths":
 				_sc_ok(deaths > 0, String(step.get("label", "deaths")), "deaths=%d" % deaths)
 			"assert_toast":
@@ -1003,6 +1093,34 @@ func _build_triggers() -> void:
 			"actions": t.get("actions", []),
 			"fired": false
 		})
+func _deny(msg: String) -> void:
+	if deny_t > 0.0:
+		return
+	deny_t = 2.5
+	var text := msg if msg.begins_with("say_") == false else I18n.t(msg)
+	ui.say(text, 2.2)
+
+func _use_914(mode: int) -> void:
+	audio.play("keycard_beep.wav", -4.0)
+	if mode == 3:
+		card_level = 0
+		ui.say(I18n.t("say_914_lost"), 2.6)
+		return
+	if mode == 2 and card_level == 1:
+		card_level = 2
+		ui.say(I18n.t("say_914_up"), 2.4)
+	elif mode == 2 and card_level == 2:
+		card_level = 3
+		ui.say(I18n.t("say_914_up3"), 2.4)
+	elif mode == 1 and card_level >= 3:
+		card_level = 2
+		ui.say(I18n.t("say_914_down"), 2.4)
+	elif mode == 1 and card_level == 2:
+		card_level = 1
+		ui.say(I18n.t("say_914_down"), 2.4)
+	else:
+		ui.say(I18n.t("say_914_nothing"), 2.0)
+
 func _run_actions(actions: Array) -> void:
 	for act in actions:
 		match String(act.get("do", "")):
@@ -1015,8 +1133,7 @@ func _run_actions(actions: Array) -> void:
 			"fade":
 				ui.fade_to(float(act.get("to", 0.0)), float(act.get("secs", 0.6)))
 			"activate_scp":
-				if scp:
-					scp.active = true
+				_activate_all()
 			"teleport":
 				var to: Array = act["to"]
 				if player:
@@ -1084,22 +1201,55 @@ func _spawn_player() -> void:
 	cam.make_current()
 
 func _spawn_scp() -> void:
-	if level["scps"].is_empty():
-		return
-	var meta: Dictionary = level["scps"][0]
-	var s0: Array = meta["at"]
-	scp_spawn = Vector2(float(s0[0]), float(s0[1])) * TILE
-	scp_type = String(meta.get("type", "173"))
-	scp = Node2D.new()
-	scp.name = "SCP-" + scp_type
-	if scp_type == "106":
-		scp.set_script(load("res://scripts/scp106.gd"))
-	else:
-		scp.set_script(load("res://scripts/scp173.gd"))
-	scp.position = scp_spawn
-	add_child(scp)
-	scp.setup(player)
-	scp.connect("stepped", _on_scp_stepped)
+	for meta in level["scps"]:
+		var t := String(meta.get("type", "173"))
+		var at: Array = meta["at"]
+		var pos := Vector2(float(at[0]), float(at[1])) * TILE
+		var node := Node2D.new()
+		node.name = "SCP-" + t
+		match t:
+			"106":
+				node.set_script(load("res://scripts/scp106.gd"))
+			"966":
+				node.set_script(load("res://scripts/scp966.gd"))
+			"895":
+				node.set_script(load("res://scripts/scp895.gd"))
+			"372":
+				node.set_script(load("res://scripts/scp372.gd"))
+			_:
+				node.set_script(load("res://scripts/scp173.gd"))
+		node.position = pos
+		add_child(node)
+		if t == "895":
+			node.call("setup", player, Rect2(22 * TILE, 3 * TILE, 7 * TILE, 6 * TILE))
+		else:
+			node.call("setup", player)
+		scps.append({"type": t, "node": node})
+		if scp == null:
+			scp = node
+			scp_spawn = pos
+			scp_type = t
+	if scp and scp.has_signal("stepped"):
+		scp.connect("stepped", _on_scp_stepped)
+	if scp == null:
+		scp_type = ""
+
+func _activate_all() -> void:
+	for e in scps:
+		e["node"].active = true
+
+func _nearest_threat() -> Node2D:
+	var best: Node2D = null
+	var bd := 1e9
+	for e in scps:
+		var n: Node2D = e["node"]
+		if not n.active:
+			continue
+		var d: float = player.position.distance_to(n.position)
+		if d < bd:
+			bd = d
+			best = n
+	return best
 
 func _build_ui() -> void:
 	ui = load("res://scripts/ui.gd").new()
@@ -1274,7 +1424,7 @@ func _process(delta: float) -> void:
 			var k := 0.25 + 0.75 * float(randi() % 2)
 			cm_node.color = Color(0.16, 0.175, 0.215) * k
 		else:
-			cm_node.color = Color(0.16, 0.175, 0.215)
+			cm_node.color = Color(0.34, 0.36, 0.44) if powered else Color(0.16, 0.175, 0.215)
 
 	# only the lights around the player are powered: distant rooms stay black,
 	# which keeps the wing's layout a mystery until you walk into it
@@ -1283,7 +1433,8 @@ func _process(delta: float) -> void:
 		if n == null:
 			continue
 		var dd: float = player.position.distance_to(s["pos"])
-		var falloff: float = clampf(1.0 - (dd - 108.0) / 42.0, 0.0, 1.0)
+		var reach := 108.0 if not powered else 300.0
+		var falloff: float = clampf(1.0 - (dd - reach) / 42.0, 0.0, 1.0)
 		var want: float = float(s["base"]) * falloff
 		if flicker.has(n):
 			want *= 0.85
@@ -1303,22 +1454,27 @@ func _process(delta: float) -> void:
 			cam.offset = cam.offset.lerp(Vector2.ZERO, clampf(delta * 8.0, 0.0, 1.0))
 
 	var danger := 0.0
-	if scp and st == St.PLAY:
-		var d: float = player.position.distance_to(scp.position)
-		if scp_type == "173" and not met_173 and player.can_see(scp.position):
+	var threat := _nearest_threat()
+	if threat and st == St.PLAY:
+		var d: float = player.position.distance_to(threat.position)
+		if scp_type == "173" and not met_173 and player.can_see(threat.position):
 			met_173 = true
 			ui.say(I18n.t("say_173"), 3.4)
 			ui.set_objective("obj_corridor")
 			audio.play("stinger.wav", -12.0)
 		if scp_type == "106":
 			danger = clampf(1.0 - d / 220.0, 0.0, 1.0)
-		elif not player.can_see(scp.position):
+		elif not player.can_see(threat.position):
 			danger = clampf(1.0 - d / 200.0, 0.0, 1.0)
 		if danger > 0.35:
 			audio.set_heartbeat(true)
 		else:
 			audio.set_heartbeat(false)
 
+	if player.contamin_t > 0.0:
+		danger = 1.0
+		if cam:
+			cam.offset = Vector2(randf_range(-2.5, 2.5), randf_range(-2.5, 2.5))
 	ui.tick(delta, player.blink_ratio(), player.battery_ratio(), player.stamina_ratio(), card_level, player.eyes_open, danger)
 
 # ---------------------------------------------------------------- interaction
@@ -1353,6 +1509,7 @@ func _update_prompt() -> void:
 				"vending": txt = I18n.t("prompt_vend")
 				"nvg": txt = I18n.t("prompt_nvg")
 				"breaker": txt = I18n.t("prompt_breaker")
+				"machine": txt = I18n.t("prompt_914")
 			prompt = {"kind": it.kind, "ref": it, "text": txt, "pos": it.pos}
 	if prompt.is_empty():
 		ui.set_prompt("")
@@ -1416,6 +1573,11 @@ func _interact() -> void:
 					audio.play("alarm_loop.wav", -8.0)
 					ui.say(I18n.t("say_power_on"), 3.0)
 					ui.set_objective("obj_a2_lift")
+		"machine":
+			var mi = prompt.ref
+			st = St.MACHINE
+			player.freeze = true
+			ui.show_doc(I18n.t("ui_914"), I18n.t("ui_914_body"))
 		"vending":
 			var roll := randf()
 			if roll < 0.25:
@@ -1477,12 +1639,21 @@ func _check_triggers() -> void:
 	for t in triggers:
 		if t.fired:
 			continue
-		if t.rect.has_point(player.position):
-			t.fired = true
-			if t.get("actions", []).size() > 0:
-				_run_actions(t["actions"])
-			else:
-				_fire(t.kind)
+		if not t.rect.has_point(player.position):
+			continue
+		if t.has("need"):
+			var need: Dictionary = t["need"]
+			if need.has("powered") and bool(need["powered"]) and not powered:
+				_deny("say_need_power")
+				continue
+			if need.has("card") and card_level < int(need["card"]):
+				_deny(I18n.t("say_need_card") % int(need["card"]))
+				continue
+		t.fired = true
+		if t.get("actions", []).size() > 0:
+			_run_actions(t["actions"])
+		else:
+			_fire(t.kind)
 	if exit_zone.size.x > 0 and exit_zone.has_point(player.position):
 		_win()
 
@@ -1532,6 +1703,16 @@ func _input(event: InputEvent) -> void:
 				st = St.PLAY
 				player.freeze = false
 				ui.hide_inv()
+		St.MACHINE:
+			if k == KEY_ESCAPE:
+				ui.hide_doc()
+				st = St.PLAY
+				player.freeze = false
+			elif k >= KEY_1 and k <= KEY_3:
+				_use_914(k - KEY_0)
+				ui.hide_doc()
+				st = St.PLAY
+				player.freeze = false
 		St.DOC:
 			if k == KEY_E or k == KEY_ESCAPE:
 				ui.hide_doc()

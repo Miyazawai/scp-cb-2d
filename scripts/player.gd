@@ -23,6 +23,8 @@ var eyes_open := true
 var blink_timer := BLINK_INTERVAL
 var blink_left := 0.0
 var battery := 100.0
+var has_nvg := false
+var contamin_t := 0.0
 var stamina := 100.0
 var stamina_delay := 0.0
 var light_on := true
@@ -52,6 +54,7 @@ func reset_state() -> void:
 	stamina_delay = 0.0
 	blink_timer = BLINK_INTERVAL
 	blink_left = 0.0
+	contamin_t = 0.0
 	eyes_open = true
 	light_on = true
 	freeze = false
@@ -142,6 +145,8 @@ func _physics_process(delta: float) -> void:
 		dir.x -= 1.0
 	if Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT):
 		dir.x += 1.0
+	if contamin_t > 0.0:
+		dir = -dir
 	dir = dir.normalized()
 	var want_sprint := Input.is_physical_key_pressed(KEY_SHIFT) and dir != Vector2.ZERO
 	var sprint := want_sprint and stamina > 1.0
@@ -199,6 +204,9 @@ func _process(delta: float) -> void:
 		eyes_open = false
 		if blink_left <= 0.0:
 			eyes_open = true
+
+	if contamin_t > 0.0:
+		contamin_t = maxf(0.0, contamin_t - delta)
 
 	if light_on:
 		battery = maxf(0.0, battery - BATTERY_DRAIN * delta)
@@ -273,6 +281,10 @@ func can_see(target: Vector2) -> bool:
 	var space := get_world_2d().direct_space_state
 	var q := PhysicsRayQueryParameters2D.create(global_position, target, 1)
 	return space.intersect_ray(q).is_empty()
+
+func contaminate(secs: float) -> void:
+	if contamin_t <= 0.0:
+		contamin_t = secs
 
 func die() -> void:
 	if freeze:

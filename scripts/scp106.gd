@@ -35,6 +35,9 @@ func _ready() -> void:
 func setup(p: CharacterBody2D) -> void:
 	player = p
 
+func get_seen() -> int:
+	return 0
+
 func _process(delta: float) -> void:
 	if player == null or player.freeze or hold or not active:
 		return
