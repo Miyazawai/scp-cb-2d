@@ -33,6 +33,8 @@ var hl: Sprite2D = null
 
 var card_level := 0
 var inv: Array = []
+static var next_level := ""
+static var carry_card := 0
 var docs_found: Dictionary = {}
 var _sc_fail := 0
 var spawn_pos := Vector2.ZERO
@@ -51,7 +53,15 @@ func _ready() -> void:
 		if arg == "--validate" or arg.begins_with("--validate="):
 			_validate_level(arg)
 			return
-	level = _load_level("res://levels/act1.json")
+	var lv_path := "res://levels/act1.json"
+	for a0 in _args():
+		if a0.begins_with("--level="):
+			var v0 := a0.substr(8)
+			lv_path = v0 if v0.begins_with("res://") else "res://" + v0
+	if next_level != "":
+		lv_path = next_level
+		next_level = ""
+	level = _load_level(lv_path)
 	MAP_W = int(level["size"][0])
 	MAP_H = int(level["size"][1])
 	var ex: Array = level["exit"]["rect"]
@@ -408,6 +418,9 @@ func _scenarios() -> Dictionary:
 			{ "do": "wait", "secs": 2.6 },
 			{ "do": "assert_state", "value": "END", "label": "act card shown" },
 			{ "do": "near", "to": [29.5, 14.5], "tol": 40.0, "label": "auto-saved at the elevator" },
+		],
+		"fixture_spawn": [
+			{ "do": "near", "to": [2.5, 2.5], "tol": 24.0, "label": "booted into the level passed by --level" },
 		],
 		"negative_control": [
 			{ "do": "assert_docs", "value": "nope", "label": "this must fail" },
@@ -970,6 +983,10 @@ func _run_actions(actions: Array) -> void:
 				await get_tree().create_timer(float(act.get("secs", 0.5))).timeout
 			"blackout":
 				burst = float(act.get("secs", 1.0))
+			"goto_level":
+				carry_card = card_level
+				next_level = String(act.get("file", ""))
+				get_tree().reload_current_scene()
 			"end_act":
 				st = St.END
 				player.freeze = true

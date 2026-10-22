@@ -12,6 +12,7 @@ $cases = @(
     @{ n = "off-floor decal rejected";   a = @("--validate=res://levels/test/bad_decal.json"); code = 1; has = "decal" },
     @{ n = "duplicate doc id rejected";  a = @("--validate=res://levels/test/dup_doc.json");   code = 1; has = "duplicate" },
     @{ n = "scenario list";              a = @("--scenario=list");                             code = 0; has = "act1_walkthrough" },
+    @{ n = "boot into --level fixture";  a = @("--level=res://levels/test/good.json", "--scenario=fixture_spawn"); code = 0; has = "PASS failures=0" },
     @{ n = "act1 walkthrough";           a = @("--scenario=act1_walkthrough");                 code = 0; has = "PASS failures=0" },
     @{ n = "act1 documents";             a = @("--scenario=act1_documents");                   code = 0; has = "PASS failures=0" },
     @{ n = "act1 terminals";             a = @("--scenario=act1_terminals");                   code = 0; has = "PASS failures=0" },
