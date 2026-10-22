@@ -1,7 +1,11 @@
 extends Node2D
-## Level 1 keycard pickup. Blinks slowly so it is findable in the dark.
+## Level keycard pickup. Blinks so it is findable in the dark.
 
+var level := 1
 var t := 0.0
+
+func setup(data: Dictionary) -> void:
+	level = int(data.get("level", 1))
 
 func _process(delta: float) -> void:
 	t += delta
@@ -9,7 +13,10 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var a := 0.55 + 0.45 * absf(sin(t * 2.2))
-	draw_rect(Rect2(-4, -6, 8, 12), Color(0.85, 0.72, 0.35, 1.0))
-	draw_rect(Rect2(-4, -6, 8, 3), Color(1.0, 0.9, 0.55, 1.0))
-	draw_rect(Rect2(-2, -1, 4, 3), Color(0.15, 0.15, 0.18, 1.0))
-	draw_circle(Vector2.ZERO, 1.0 + a * 3.0, Color(1.0, 0.85, 0.4, 0.10 * a))
+	var body := Color("c99a3f") if level == 1 else Color("d04848")
+	var edge := Color("f0c76b") if level == 1 else Color("ff8a7a")
+	draw_circle(Vector2.ZERO, 1.0 + a * 5.0, Color(body.r, body.g, body.b, 0.10 * a))
+	draw_rect(Rect2(-4, -6, 8, 12), body)
+	draw_rect(Rect2(-4, -6, 8, 3), edge)
+	draw_rect(Rect2(-2, -1, 4, 3), Color(0.10, 0.11, 0.13))
+	draw_rect(Rect2(-4, 5, 8, 1), Color(0.08, 0.09, 0.10))

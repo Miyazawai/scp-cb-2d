@@ -8,6 +8,8 @@ extends Node2D
 
 signal stepped(distance_to_player: float)
 
+const Assets := preload("res://scripts/assets.gd")
+
 const STEP_DIST := 40.0          # ~2.5 tiles per jump
 const STEP_INTERVAL := 0.24      # one jump per forced blink, ~4/s while you look away
 const KILL_DIST := 8.5
@@ -20,12 +22,29 @@ var _shown := false
 var _flash := 0.0
 
 var _sfx: AudioStreamPlayer2D = null
+var _sprite: Sprite2D = null
+var _tex_idle: Texture2D = null
+var _tex_step: Texture2D = null
+var _tex_lunge: Texture2D = null
+var _look_t := 0.0
 
 func _ready() -> void:
+	_tex_idle = Assets.tex("chars/scp173_idle.png")
+	_tex_step = Assets.tex("chars/scp173_step.png")
+	_tex_lunge = Assets.tex("chars/scp173_lunge.png")
+	if _tex_idle:
+		_sprite = Sprite2D.new()
+		_sprite.texture = _tex_idle
+		_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_sprite.offset = Vector2(0, -12)
+		_sprite.z_index = 3
+		add_child(_sprite)
+
 	_sfx = AudioStreamPlayer2D.new()
-	_sfx.stream = _make_scrape()
-	_sfx.max_distance = 260.0
-	_sfx.volume_db = -7.0
+	var s := Assets.snd("scp_step.wav")
+	_sfx.stream = s if s != null else _make_scrape()
+	_sfx.max_distance = 300.0
+	_sfx.volume_db = -4.0
 	add_child(_sfx)
 
 func setup(p: CharacterBody2D) -> void:
@@ -102,6 +121,16 @@ func _make_scrape() -> AudioStreamWAV:
 
 func _draw() -> void:
 	var base := Color("b7b0a2")
+	if _sprite != null:
+		# sprite mode: swap frames instead of drawing
+		var d: float = player.global_position.distance_to(global_position) if player else 999.0
+		if d < 40.0 and _tex_lunge:
+			_sprite.texture = _tex_lunge
+		elif _flash > 0.05 and _tex_step:
+			_sprite.texture = _tex_step
+		else:
+			_sprite.texture = _tex_idle
+		return
 	# faint afterimage of the last position, sells the "it just moved" read
 	if _flash > 0.01:
 		var a := _flash * 0.22

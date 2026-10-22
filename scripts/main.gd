@@ -1,68 +1,125 @@
 extends Node2D
-## Demo scene builder + game flow.
-## Everything is generated in code: no external art assets.
-## Controls: WASD move, mouse aim flashlight, Shift sprint, Space blink, F light, R restart.
+## Vertical slice: one wing of Light Containment. Cell -> corridor (173) ->
+## checkpoint (save / document) -> power room -> exit.
+
+const Assets := preload("res://scripts/assets.gd")
 
 const TILE := 16
 const MAP_W := 40
-const MAP_H := 28
+const MAP_H := 32
+
+enum St { TITLE, PLAY, PAUSE, DOC, DEAD, END }
 
 var grid: Array = []
+var st: int = St.TITLE
 
 var player: CharacterBody2D = null
 var scp: Node2D = null
-
-var walls_body: StaticBody2D = null
-var doors: Array = []
-var exit_zone := Rect2()
-var card_pos := Vector2.ZERO
-var card_node: Node2D = null
-var card_taken := false
-
 var cam: Camera2D = null
-var vignette: TextureRect = null
-var shake_amt := 0.0
+var ui: CanvasLayer = null
+var audio: Node = null
 
-var blink_fill: ColorRect = null
-var blink_label: Label = null
-var batt_fill: ColorRect = null
-var card_label: Label = null
-var center_label: Label = null
-var blink_overlay: ColorRect = null
+var doors: Array = []
+var items: Array = []
+var lights_ref: Array = []
+var flicker: Array = []
 
-var state := "play"
+var card_level := 0
+var spawn_pos := Vector2.ZERO
+var save_pos := Vector2.ZERO
+var scp_spawn := Vector2.ZERO
+var exit_zone := Rect2()
+var prompt: Dictionary = {}
+var dead_t := 0.0
 var shot_mode := false
-var say_timer := 0.0
 
-# ---------------------------------------------------------------- setup
+# ---------------------------------------------------------------- boot
 
 func _ready() -> void:
-	_make_grid()
+	audio = load("res://scripts/audio.gd").new()
+	audio.name = "Audio"
+	add_child(audio)
+
+	_build_grid()
+	exit_zone = Rect2(9 * TILE, 25 * TILE, 3 * TILE, 3 * TILE)
 	_build_floor()
 	_build_walls()
 	_build_lights()
+	_build_props()
+	_build_items()
+	_build_doors()
 	_spawn_player()
 	_spawn_scp()
-	_spawn_card()
-	_build_hud()
+	_build_ui()
+	_build_post()
+
+	st = St.TITLE
+	player.freeze = true
+	ui.show_title(true)
+	ui.fade_to(0.0, 1.4)
+	audio.start_ambience()
+
 	_apply_args()
 
-func _make_grid() -> void:
-	grid.clear()
+func _apply_args() -> void:
+	var a := PackedStringArray()
+	a.append_array(OS.get_cmdline_args())
+	a.append_array(OS.get_cmdline_user_args())
+	if a.has("--shot") or a.has("--shot2") or a.has("--shot3"):
+		shot_mode = true
+		st = St.PLAY
+		ui.show_title(false)
+		player.freeze = false
+		ui.fade_to(0.0, 0.01)
+		player.use_mouse_aim = false
+		player.facing = Vector2.RIGHT
+		var fname := "demo_shot.png"
+		if a.has("--shot"):
+			player.position = Vector2(19.5 * TILE, 5.5 * TILE)
+			scp.position = Vector2(24.0 * TILE, 5.5 * TILE)
+			scp.hold = true
+			card_level = 1
+		elif a.has("--shot3"):
+			fname = "demo_shot3.png"
+			player.position = Vector2(22.5 * TILE, 6.5 * TILE)
+			scp.position = Vector2(19.0 * TILE, 5.0 * TILE)
+			scp.hold = true
+			ui.set_objective("FIND A WAY OUT")
+		else:
+			fname = "demo_shot2.png"
+			player.position = Vector2(5.5 * TILE, 5.5 * TILE)
+			scp.position = Vector2(27.0 * TILE, 4.5 * TILE)
+			scp.hold = true
+			ui.set_objective("FIND A WAY OUT")
+		_shot(fname)
+	else:
+		ui.set_objective("")
+
+func _shot(fname: String) -> void:
+	await get_tree().create_timer(1.4).timeout
+	await RenderingServer.frame_post_draw
+	var img := get_viewport().get_texture().get_image()
+	img.save_png(ProjectSettings.globalize_path("res://" + fname))
+	print("SHOT SAVED: ", fname)
+	get_tree().quit()
+
+# ---------------------------------------------------------------- map
+
+func _build_grid() -> void:
 	for y in MAP_H:
 		var row: Array = []
 		for x in MAP_W:
 			row.append("#")
 		grid.append(row)
-	_carve(2, 2, 9, 7)      # A: start room
-	_carve(10, 4, 17, 5)    # corridor 1
-	_carve(12, 6, 13, 6)    # connector down
-	_carve(11, 7, 15, 10)   # side room (keycard)
-	_carve(18, 2, 27, 9)    # B: 173 past the door
-	_carve(22, 10, 23, 17)  # corridor 2
-	_carve(16, 18, 29, 23)  # C: exit room
-	grid[4][17] = "D"
-	grid[5][17] = "D"
+	_carve(2, 2, 9, 8)       # cell
+	_carve(10, 5, 11, 6)     # cell -> corridor
+	_carve(12, 3, 30, 8)     # corridor
+	_carve(24, 9, 25, 12)    # corridor -> checkpoint
+	_carve(16, 13, 30, 20)   # checkpoint
+	_carve(10, 16, 15, 17)   # checkpoint -> power
+	_carve(3, 13, 9, 20)     # power room
+	_carve(6, 21, 7, 23)     # power -> exit
+	_carve(3, 24, 12, 28)    # exit hall
 
 func _carve(x0: int, y0: int, x1: int, y1: int) -> void:
 	for y in range(y0, y1 + 1):
@@ -70,45 +127,147 @@ func _carve(x0: int, y0: int, x1: int, y1: int) -> void:
 			if x >= 0 and x < MAP_W and y >= 0 and y < MAP_H:
 				grid[y][x] = "."
 
-# ---------------------------------------------------------------- textures
+func _is_floor(x: int, y: int) -> bool:
+	if x < 0 or y < 0 or x >= MAP_W or y >= MAP_H:
+		return false
+	return grid[y][x] == "."
 
-func _floor_texture() -> ImageTexture:
-	var img := Image.create(TILE, TILE, false, Image.FORMAT_RGBA8)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 20261022
-	for y in TILE:
-		for x in TILE:
-			var base := Color("1e2229")
-			var n := rng.randf_range(-0.022, 0.022)
-			var c := Color(base.r + n, base.g + n, base.b + n * 1.05, 1.0)
-			if x == 0 or y == 0:
-				c = c.darkened(0.40)
-			if x == TILE - 1 or y == TILE - 1:
-				c = c.darkened(0.18)
-			img.set_pixel(x, y, c)
-	return ImageTexture.create_from_image(img)
+# ---------------------------------------------------------------- build
 
-func _wall_texture() -> ImageTexture:
-	var img := Image.create(TILE, TILE, false, Image.FORMAT_RGBA8)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 771
-	for y in TILE:
-		for x in TILE:
-			var base := Color("434d5c")
-			var n := rng.randf_range(-0.02, 0.02)
-			var c := Color(base.r + n, base.g + n, base.b + n, 1.0)
-			if y < 2:
-				c = c.lightened(0.22)          # top highlight
-			elif y == 6 or y == 7:
-				c = c.darkened(0.28)           # seam
-			if x == 0:
-				c = c.darkened(0.20)
-			if y == TILE - 1:
-				c = c.darkened(0.45)
-			img.set_pixel(x, y, c)
-	return ImageTexture.create_from_image(img)
+func _sprite(tex_rel: String, pos: Vector2, z: int) -> Sprite2D:
+	var t := Assets.tex(tex_rel)
+	if t == null:
+		return null
+	var s := Sprite2D.new()
+	s.texture = t
+	s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	s.position = pos
+	s.z_index = z
+	add_child(s)
+	return s
 
-func _radial_texture(px: int, power: float) -> ImageTexture:
+func _quad(rect: Rect2, color: Color, z: int) -> Polygon2D:
+	var p := Polygon2D.new()
+	p.polygon = PackedVector2Array([
+		rect.position, Vector2(rect.end.x, rect.position.y), rect.end,
+		Vector2(rect.position.x, rect.end.y)])
+	p.color = color
+	p.z_index = z
+	add_child(p)
+	return p
+
+func _build_floor() -> void:
+	var variants := ["tiles/floor_concrete_a.png", "tiles/floor_concrete_b.png", "tiles/floor_concrete_c.png"]
+	var use_art := Assets.has_art(variants[0])
+	for y in MAP_H:
+		for x in MAP_W:
+			if not _is_floor(x, y):
+				continue
+			var c := Vector2(x * TILE + 8, y * TILE + 8)
+			if use_art:
+				_sprite(variants[(x * 7 + y * 13) % 3], c, -2)
+			else:
+				var shade := 0.0 if (x + y) % 2 == 0 else 0.012
+				_quad(Rect2(x * TILE, y * TILE, TILE, TILE), Color(0.105 + shade, 0.118 + shade, 0.14 + shade), -2)
+
+func _build_walls() -> void:
+	var body := StaticBody2D.new()
+	body.name = "Walls"
+	body.collision_layer = 1
+	body.collision_mask = 0
+	add_child(body)
+
+	var has_top := Assets.has_art("tiles/wall_top.png")
+	var has_face := Assets.has_art("tiles/wall_face.png")
+	var has_shadow := Assets.has_art("tiles/wall_shadow.png")
+
+	for y in MAP_H:
+		for x in MAP_W:
+			if _is_floor(x, y):
+				continue
+			var c := Vector2(x * TILE + 8, y * TILE + 8)
+			if has_top:
+				_sprite("tiles/wall_top.png", c, 0)
+			else:
+				_quad(Rect2(x * TILE, y * TILE, TILE, TILE), Color("343d47"), 0)
+
+			var cs := CollisionShape2D.new()
+			var shape := RectangleShape2D.new()
+			shape.size = Vector2(TILE, TILE)
+			cs.shape = shape
+			cs.position = c
+			body.add_child(cs)
+
+			var occ := LightOccluder2D.new()
+			var op := OccluderPolygon2D.new()
+			op.polygon = PackedVector2Array([
+				Vector2(x * TILE, y * TILE), Vector2(x * TILE + TILE, y * TILE),
+				Vector2(x * TILE + TILE, y * TILE + TILE), Vector2(x * TILE, y * TILE + TILE)])
+			op.closed = true
+			occ.occluder = op
+			add_child(occ)
+
+			if _is_floor(x, y + 1):
+				if has_face:
+					var f := _sprite("tiles/wall_face.png", Vector2(c.x, y * TILE + 11), 1)
+					if f:
+						f.centered = true
+				else:
+					_quad(Rect2(x * TILE, y * TILE + 10, TILE, 6), Color("4a5561"), 1)
+				if has_shadow:
+					_sprite("tiles/wall_shadow.png", Vector2(c.x, (y + 1) * TILE + 3), -1)
+
+func _build_lights() -> void:
+	var cm := CanvasModulate.new()
+	cm.color = Color(0.16, 0.175, 0.215)
+	add_child(cm)
+
+	var tex := _radial(128, 1.5)
+	var spots := [
+		[Vector2(5.5, 4.5), 1.05, false],
+		[Vector2(10.5, 5.5), 0.75, false],
+		[Vector2(14.5, 5.5), 0.95, false],
+		[Vector2(20.5, 4.5), 0.85, false],
+		[Vector2(26.5, 5.5), 1.00, true],
+		[Vector2(24.5, 10.5), 0.70, false],
+		[Vector2(20.0, 16.0), 0.95, false],
+		[Vector2(26.5, 17.5), 0.85, false],
+		[Vector2(29.0, 14.0), 0.60, false],
+		[Vector2(12.5, 16.5), 0.70, false],
+		[Vector2(5.5, 15.5), 0.55, true],
+		[Vector2(7.0, 19.0), 0.50, true],
+		[Vector2(6.5, 22.0), 0.65, false],
+		[Vector2(6.0, 26.0), 0.90, false],
+		[Vector2(10.0, 26.5), 0.90, false],
+	]
+	for s in spots:
+		var p: Vector2 = s[0] * TILE
+		var energy: float = s[1]
+		var flick: bool = s[2]
+		var l := PointLight2D.new()
+		l.texture = tex
+		l.texture_scale = 1.7
+		l.energy = energy * 1.5
+		l.color = Color(1.0, 0.90, 0.78)
+		l.shadow_enabled = true
+		l.shadow_filter = Light2D.SHADOW_FILTER_PCF5
+		l.position = p
+		add_child(l)
+		lights_ref.append({"pos": p, "radius": 86.0})
+		if flick:
+			flicker.append(l)
+
+		if Assets.has_art("tiles/ceiling_lamp.png"):
+			_sprite("tiles/ceiling_lamp.png", p, 3)
+		else:
+			var tube := Polygon2D.new()
+			tube.polygon = PackedVector2Array([Vector2(-5, -1), Vector2(5, -1), Vector2(5, 1), Vector2(-5, 1)])
+			tube.color = Color(1.0, 0.92, 0.74)
+			tube.position = p
+			tube.z_index = 3
+			add_child(tube)
+
+func _radial(px: int, power: float) -> ImageTexture:
 	var img := Image.create(px, px, false, Image.FORMAT_RGBA8)
 	var c := px * 0.5
 	for y in px:
@@ -120,204 +279,98 @@ func _radial_texture(px: int, power: float) -> ImageTexture:
 			img.set_pixel(x, y, Color(1, 1, 1, a))
 	return ImageTexture.create_from_image(img)
 
-func _vignette_texture(px: int) -> ImageTexture:
-	var img := Image.create(px, px, false, Image.FORMAT_RGBA8)
-	var c := px * 0.5
-	for y in px:
-		for x in px:
-			var d := clampf(Vector2(x + 0.5 - c, y + 0.5 - c).length() / c, 0.0, 1.0)
-			var a := pow(clampf((d - 0.30) / 0.70, 0.0, 1.0), 1.7)
-			img.set_pixel(x, y, Color(1, 1, 1, a))
-	return ImageTexture.create_from_image(img)
+func _prop(art: String, cell: Vector2, z: int = 1, fallback_color: Color = Color.TRANSPARENT) -> void:
+	var pos := cell * TILE
+	if Assets.has_art("tiles/" + art):
+		_sprite("tiles/" + art, pos, z)
+	elif fallback_color.a > 0.0:
+		_quad(Rect2(pos - Vector2(10, 6), Vector2(20, 12)), fallback_color, z)
 
-func _on_scp_stepped(dist: float) -> void:
-	if dist < 150.0:
-		shake_amt = maxf(shake_amt, clampf(1.0 - dist / 150.0, 0.0, 1.0) * 3.2)
+func _build_props() -> void:
+	_prop("locker.png", Vector2(3.5, 7.5), 1, Color("3a4650"))
+	_prop("chair.png", Vector2(7.5, 3.5), 1, Color("3a4650"))
+	_prop("vent.png", Vector2(15.5, 3.5), 1, Color("2c343c"))
+	_prop("blood_splat.png", Vector2(21.5, 6.0), 0)
+	_prop("corpse.png", Vector2(28.5, 6.0), 1, Color("7a4a20"))
+	_prop("crate.png", Vector2(13.0, 7.5), 1, Color("4a3a28"))
+	_prop("crate.png", Vector2(29.0, 3.5), 1, Color("4a3a28"))
+	_prop("hazard_sign.png", Vector2(12.5, 3.5), 2)
+	_prop("desk.png", Vector2(21.0, 15.0), 1, Color("3d474f"))
+	_prop("terminal.png", Vector2(21.0, 15.0), 2, Color("1f4b6b"))
+	_prop("desk.png", Vector2(27.0, 18.0), 1, Color("3d474f"))
+	_prop("save_terminal.png", Vector2(27.0, 18.0), 2, Color("2f6b3a"))
+	_prop("chair.png", Vector2(22.0, 16.0), 1, Color("3a4650"))
+	_prop("corpse.png", Vector2(18.5, 19.0), 1, Color("7a4a20"))
+	_prop("bodybag.png", Vector2(20.0, 19.5), 1, Color("1c1c20"))
+	_prop("locker.png", Vector2(29.5, 19.5), 1, Color("3a4650"))
+	_prop("locker.png", Vector2(29.5, 18.5), 1, Color("3a4650"))
+	_prop("barrel.png", Vector2(4.5, 14.5), 1, Color("4a4038"))
+	_prop("barrel.png", Vector2(5.5, 14.5), 1, Color("4a4038"))
+	_prop("crate.png", Vector2(8.0, 19.0), 1, Color("4a3a28"))
+	_prop("bodybag.png", Vector2(4.0, 19.0), 1, Color("1c1c20"))
+	_prop("blood_splat.png", Vector2(7.0, 17.0), 0)
+	_prop("vent.png", Vector2(3.5, 13.5), 1, Color("2c343c"))
 
-func _quad(rect: Rect2, tex: Texture2D, tint: Color, z: int, uv_per_tile: bool = true) -> Polygon2D:
-	var p := Polygon2D.new()
-	p.polygon = PackedVector2Array([
-		rect.position,
-		Vector2(rect.end.x, rect.position.y),
-		rect.end,
-		Vector2(rect.position.x, rect.end.y),
-	])
-	if uv_per_tile:
-		var w := rect.size.x / TILE
-		var h := rect.size.y / TILE
-		p.uv = PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)])
-	else:
-		p.uv = PackedVector2Array([Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)])
-	p.texture = tex
-	p.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	p.color = tint
-	p.z_index = z
-	return p
+func _build_items() -> void:
+	items.append(_make_item(Vector2(28.5, 6.0) * TILE, "card", {"level": 1, "label": "LEVEL 1 KEYCARD"}))
+	items.append(_make_item(Vector2(18.5, 19.0) * TILE, "card", {"level": 2, "label": "LEVEL 2 KEYCARD"}))
+	items.append(_make_item(Vector2(21.0, 15.0) * TILE, "doc", {
+		"title": "INCIDENT LOG — 02:14",
+		"body": "Containment failure originated in the 173 chamber on sublevel 3. Blink protocol was suspended during the evacuation drill; the camera feed shows the statue moving between frames.\n\nAll personnel: do not break eye contact. If you must look away, do it with your back to a wall and your light on it.\n\n— Dr. ██████"
+	}))
+	items.append(_make_item(Vector2(27.0, 18.0) * TILE, "save", {"label": "CHECKPOINT"}))
 
-func _build_floor() -> void:
-	var tex := _floor_texture()
-	var root := Node2D.new()
-	root.name = "Floor"
-	add_child(root)
-	for y in MAP_H:
-		var x := 0
-		while x < MAP_W:
-			if grid[y][x] != "#":
-				var x0 := x
-				while x < MAP_W and grid[y][x] != "#":
-					x += 1
-				var rect := Rect2(x0 * TILE, y * TILE, (x - x0) * TILE, TILE)
-				root.add_child(_quad(rect, tex, Color.WHITE, -2))
-			else:
-				x += 1
+func _make_item(pos: Vector2, kind: String, data: Dictionary) -> Dictionary:
+	var node := Node2D.new()
+	node.position = pos
+	node.z_index = 2
+	add_child(node)
+	var it := {"pos": pos, "kind": kind, "data": data, "taken": false, "node": node}
+	if kind == "card":
+		node.set_script(load("res://scripts/keycard.gd"))
+		node.call("setup", data)
+	return it
 
-	var exit_pad := _quad(Rect2(28 * TILE, 18 * TILE, 2 * TILE, 6 * TILE), tex, Color("2e6b3c"), -1, false)
-	root.add_child(exit_pad)
-	exit_zone = Rect2(28 * TILE, 18 * TILE, 2 * TILE, 6 * TILE)
+func _build_doors() -> void:
+	doors.append(_make_door([Vector2i(24, 9), Vector2i(25, 9)], 1))
+	doors.append(_make_door([Vector2i(15, 16), Vector2i(15, 17)], 2))
 
-func _build_walls() -> void:
-	var tex := _wall_texture()
-	walls_body = StaticBody2D.new()
-	walls_body.name = "Walls"
-	walls_body.collision_layer = 1
-	walls_body.collision_mask = 0
-	add_child(walls_body)
-
-	var occ_root := Node2D.new()
-	occ_root.name = "Occluders"
-	add_child(occ_root)
-
-	for y in MAP_H:
-		var x := 0
-		while x < MAP_W:
-			if grid[y][x] == "#":
-				var x0 := x
-				while x < MAP_W and grid[y][x] == "#":
-					x += 1
-				var rect := Rect2(x0 * TILE, y * TILE, (x - x0) * TILE, TILE)
-				var vis := _quad(rect, tex, Color.WHITE, 0)
-				add_child(vis)
-
-				var above_floor: bool = y > 0 and grid[y - 1][x0] != "#"
-				var below_floor: bool = y < MAP_H - 1 and grid[y + 1][x0] != "#"
-				if above_floor or below_floor:
-					var ly := rect.position.y if above_floor else rect.end.y - 2.0
-					var lip := Polygon2D.new()
-					lip.polygon = PackedVector2Array([
-						Vector2(rect.position.x, ly),
-						Vector2(rect.end.x, ly),
-						Vector2(rect.end.x, ly + 2),
-						Vector2(rect.position.x, ly + 2),
-					])
-					lip.color = Color(0.55, 0.60, 0.70, 0.42)
-					lip.z_index = 1
-					add_child(lip)
-
-				var cs := CollisionShape2D.new()
-				var shape := RectangleShape2D.new()
-				shape.size = rect.size
-				cs.shape = shape
-				cs.position = rect.position + rect.size * 0.5
-				walls_body.add_child(cs)
-
-				var occ := LightOccluder2D.new()
-				var op := OccluderPolygon2D.new()
-				op.polygon = PackedVector2Array([
-					rect.position,
-					Vector2(rect.end.x, rect.position.y),
-					rect.end,
-					Vector2(rect.position.x, rect.end.y),
-				])
-				op.closed = true
-				occ.occluder = op
-				occ_root.add_child(occ)
-			else:
-				x += 1
-
-	# locked doors
-	for cell in [Vector2i(17, 4), Vector2i(17, 5)]:
-		var rect := Rect2(cell.x * TILE, cell.y * TILE, TILE, TILE)
-		var node := Node2D.new()
-		node.position = rect.position
-		add_child(node)
-		var body := StaticBody2D.new()
-		body.collision_layer = 1
-		body.collision_mask = 0
+func _make_door(cells: Array, level: int) -> Dictionary:
+	var body := StaticBody2D.new()
+	body.collision_layer = 1
+	body.collision_mask = 0
+	add_child(body)
+	var panels := []
+	for cell in cells:
+		var pos := Vector2(cell.x * TILE + 8, cell.y * TILE + 8)
 		var cs := CollisionShape2D.new()
 		var shape := RectangleShape2D.new()
-		shape.size = rect.size
+		shape.size = Vector2(TILE, TILE)
 		cs.shape = shape
-		cs.position = rect.size * 0.5
+		cs.position = pos
 		body.add_child(cs)
-		node.add_child(body)
-		var vis := Polygon2D.new()
-		vis.polygon = PackedVector2Array([
-			Vector2.ZERO, Vector2(rect.size.x, 0), rect.size, Vector2(0, rect.size.y)
-		])
-		vis.color = Color("8a5a22")
-		vis.z_index = 1
-		node.add_child(vis)
-		var stripe := Polygon2D.new()
-		stripe.polygon = PackedVector2Array([
-			Vector2(1, rect.size.y * 0.42), Vector2(rect.size.x - 1, rect.size.y * 0.42),
-			Vector2(rect.size.x - 1, rect.size.y * 0.58), Vector2(1, rect.size.y * 0.58)
-		])
-		stripe.color = Color("d9a441")
-		stripe.z_index = 2
-		node.add_child(stripe)
-		doors.append({"cell": cell, "body": body, "vis": vis, "stripe": stripe, "open": false})
-
-var light_spots: Array = []
-
-func _build_lights() -> void:
-	var cm := CanvasModulate.new()
-	cm.color = Color(0.24, 0.255, 0.315)
-	add_child(cm)
-
-	var tex := _radial_texture(128, 1.5)
-	var spots := [
-		Vector2(5.5 * TILE, 4.5 * TILE), Vector2(13.5 * TILE, 4.5 * TILE),
-		Vector2(13.0 * TILE, 8.5 * TILE),
-		Vector2(21.5 * TILE, 4.0 * TILE), Vector2(25.0 * TILE, 8.0 * TILE),
-		Vector2(22.5 * TILE, 12.0 * TILE), Vector2(22.5 * TILE, 16.0 * TILE),
-		Vector2(20.0 * TILE, 20.0 * TILE), Vector2(26.5 * TILE, 21.5 * TILE),
-	]
-	for p in spots:
-		light_spots.append({"pos": p, "radius": 84.0})
-		var l := PointLight2D.new()
-		l.texture = tex
-		l.texture_scale = 1.75
-		l.energy = 1.45
-		l.color = Color(1.0, 0.90, 0.78)
-		l.shadow_enabled = true
-		l.shadow_filter = Light2D.SHADOW_FILTER_PCF5
-		l.position = p
-		add_child(l)
-
-		var housing := Polygon2D.new()
-		housing.polygon = PackedVector2Array([
-			Vector2(-8, -3), Vector2(8, -3), Vector2(8, 3), Vector2(-8, 3)
-		])
-		housing.color = Color("20242b")
-		housing.position = p
-		housing.z_index = 3
-		add_child(housing)
-
-		var tube := Polygon2D.new()
-		tube.polygon = PackedVector2Array([
-			Vector2(-5, -1), Vector2(5, -1), Vector2(5, 1), Vector2(-5, 1)
-		])
-		tube.color = Color(1.0, 0.92, 0.74)
-		tube.position = p
-		tube.z_index = 4
-		add_child(tube)
-
-# ---------------------------------------------------------------- actors
+		var art := "tiles/door_panel.png" if Assets.has_art("tiles/door_panel.png") else ""
+		if art != "":
+			var s := Sprite2D.new()
+			s.texture = Assets.tex(art)
+			s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			s.position = pos
+			s.z_index = 2
+			add_child(s)
+			panels.append(s)
+		else:
+			panels.append(_quad(Rect2(pos - Vector2(8, 8), Vector2(16, 16)), Color("8a5a22"), 2))
+		if Assets.has_art("tiles/door_frame.png"):
+			_sprite("tiles/door_frame.png", pos, 1)
+	return {"cells": cells, "level": level, "body": body, "panels": panels, "open": false,
+			"center": Vector2(cells[0].x * TILE + 8, cells[0].y * TILE + 8)}
 
 func _spawn_player() -> void:
+	spawn_pos = Vector2(5.5, 5.5) * TILE
+	save_pos = spawn_pos
 	player = CharacterBody2D.new()
 	player.name = "Player"
-	player.set_script(preload("res://scripts/player.gd"))
+	player.set_script(load("res://scripts/player.gd"))
 	player.collision_layer = 2
 	player.collision_mask = 1
 	var cs := CollisionShape2D.new()
@@ -325,14 +378,15 @@ func _spawn_player() -> void:
 	shape.radius = 5.0
 	cs.shape = shape
 	player.add_child(cs)
-	player.position = Vector2(5 * TILE + 8, 5 * TILE + 8)
-	player.lights = light_spots
+	player.position = spawn_pos
+	player.lights = lights_ref
+	player.audio = audio
 	add_child(player)
-	player.died.connect(_on_player_died)
+	player.died.connect(_on_died)
 
 	cam = Camera2D.new()
 	cam.position_smoothing_enabled = true
-	cam.position_smoothing_speed = 8.0
+	cam.position_smoothing_speed = 7.0
 	cam.limit_left = 0
 	cam.limit_top = 0
 	cam.limit_right = MAP_W * TILE
@@ -341,220 +395,229 @@ func _spawn_player() -> void:
 	cam.make_current()
 
 func _spawn_scp() -> void:
+	scp_spawn = Vector2(27.0, 4.5) * TILE
 	scp = Node2D.new()
 	scp.name = "SCP-173"
-	scp.set_script(preload("res://scripts/scp173.gd"))
-	scp.position = Vector2(19 * TILE + 8, 4 * TILE + 8)
+	scp.set_script(load("res://scripts/scp173.gd"))
+	scp.position = scp_spawn
 	add_child(scp)
 	scp.setup(player)
 	scp.connect("stepped", _on_scp_stepped)
 
-func _spawn_card() -> void:
-	card_pos = Vector2(13 * TILE + 8, 9 * TILE + 8)
-	card_node = Node2D.new()
-	card_node.name = "Keycard"
-	card_node.set_script(preload("res://scripts/keycard.gd"))
-	card_node.position = card_pos
-	add_child(card_node)
+func _build_ui() -> void:
+	ui = load("res://scripts/ui.gd").new()
+	ui.name = "UI"
+	add_child(ui)
 
-# ---------------------------------------------------------------- hud
-
-func _label(text: String, size: int, color: Color) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_color", color)
-	return l
-
-func _bar_root(pos: Vector2, w: float) -> ColorRect:
-	var bg := ColorRect.new()
-	bg.position = pos
-	bg.size = Vector2(w, 4)
-	bg.color = Color(0.06, 0.07, 0.08, 0.85)
-	return bg
-
-func _build_hud() -> void:
+func _build_post() -> void:
 	var layer := CanvasLayer.new()
-	layer.name = "HUD"
+	layer.layer = 5
 	add_child(layer)
+	var rect := ColorRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/grain.gdshader")
+	rect.material = mat
+	layer.add_child(rect)
 
-	var root := Control.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	layer.add_child(root)
+# ---------------------------------------------------------------- flow
 
-	vignette = TextureRect.new()
-	vignette.texture = _vignette_texture(128)
-	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	vignette.stretch_mode = TextureRect.STRETCH_SCALE
-	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vignette.modulate = Color(0.62, 0.05, 0.05, 0.0)
-	root.add_child(vignette)
+func _start_game() -> void:
+	ui.show_title(false)
+	ui.fade_to(1.0, 0.4)
+	await get_tree().create_timer(0.45).timeout
+	player.position = spawn_pos
+	player.freeze = false
+	player.reset_state()
+	scp.position = scp_spawn
+	st = St.PLAY
+	ui.set_objective("GET OUT OF THE CELL")
+	ui.fade_to(0.0, 0.8)
+	audio.play("blink.wav", -14.0)
 
-	blink_label = _label("BLINK", 7, Color("8fa6b8"))
-	blink_label.position = Vector2(8, 230)
-	root.add_child(blink_label)
-	var blink_bg := _bar_root(Vector2(8, 239), 70)
-	root.add_child(blink_bg)
-	blink_fill = ColorRect.new()
-	blink_fill.position = Vector2(9, 240)
-	blink_fill.size = Vector2(68, 2)
-	blink_fill.color = Color("7fb2d6")
-	root.add_child(blink_fill)
+func _on_died() -> void:
+	if st == St.DEAD:
+		return
+	st = St.DEAD
+	dead_t = 0.0
+	ui.show_dead(true)
+	audio.play("stinger.wav", -4.0)
+	ui.fade_to(0.55, 0.6)
 
-	var tl := _label("LIGHT", 7, Color("8fa6b8"))
-	tl.position = Vector2(8, 246)
-	root.add_child(tl)
-	var batt_bg := _bar_root(Vector2(8, 255), 70)
-	root.add_child(batt_bg)
-	batt_fill = ColorRect.new()
-	batt_fill.position = Vector2(9, 256)
-	batt_fill.size = Vector2(68, 2)
-	batt_fill.color = Color("d9a441")
-	root.add_child(batt_fill)
+func _respawn() -> void:
+	ui.show_dead(false)
+	player.position = save_pos
+	player.freeze = false
+	player.reset_state()
+	scp.position = scp_spawn
+	ui.fade_to(0.0, 0.5)
+	st = St.PLAY
 
-	card_label = _label("KEYCARD: NONE", 7, Color("8fa6b8"))
-	card_label.position = Vector2(370, 8)
-	root.add_child(card_label)
+func _win() -> void:
+	st = St.END
+	player.freeze = true
+	ui.fade_to(0.0, 0.01)
+	ui.fade_to(1.0, 1.2)
+	await get_tree().create_timer(1.3).timeout
+	ui.show_end(true)
+	ui.fade_to(0.0, 0.6)
 
-	center_label = _label("", 12, Color("e8e2d6"))
-	center_label.position = Vector2(0, 96)
-	center_label.size = Vector2(480, 20)
-	center_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	root.add_child(center_label)
+func _on_scp_stepped(dist: float) -> void:
+	if dist < 160.0 and cam:
+		var k: float = clampf(1.0 - dist / 160.0, 0.0, 1.0)
+		cam.offset = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * k * 3.0
 
-	blink_overlay = ColorRect.new()
-	blink_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	blink_overlay.color = Color(0, 0, 0, 0)
-	blink_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(blink_overlay)
-
-# ---------------------------------------------------------------- args / flow
-
-func _args() -> PackedStringArray:
-	var a := PackedStringArray()
-	a.append_array(OS.get_cmdline_args())
-	a.append_array(OS.get_cmdline_user_args())
-	return a
-
-func _apply_args() -> void:
-	var a := _args()
-	if a.has("--shot") or a.has("--shot2") or a.has("--shot3"):
-		shot_mode = true
-		player.use_mouse_aim = false
-		player.facing = Vector2.RIGHT
-		var fname := "demo_shot.png"
-		if a.has("--shot"):
-			player.position = Vector2(19.5 * TILE, 5.5 * TILE)
-			scp.position = Vector2(24.0 * TILE, 5.5 * TILE)
-			card_taken = true
-			player.card_level = 1
-		elif a.has("--shot3"):
-			fname = "demo_shot3.png"
-			player.position = Vector2(12.5 * TILE, 4.5 * TILE)
-			scp.position = Vector2(9.5 * TILE, 4.5 * TILE)   # behind the player, close
-			scp.hold = true
-		else:
-			fname = "demo_shot2.png"
-			player.position = Vector2(5.5 * TILE, 5.5 * TILE)
-			scp.position = Vector2(13.0 * TILE, 4.5 * TILE)
-		_shot_and_quit(fname)
-	else:
-		_say("WASD MOVE   MOUSE AIM   SPACE BLINK", 4.0)
-
-func _shot_and_quit(fname: String) -> void:
-	await get_tree().create_timer(1.2).timeout
-	await RenderingServer.frame_post_draw
-	var img := get_viewport().get_texture().get_image()
-	var path := ProjectSettings.globalize_path("res://" + fname)
-	img.save_png(path)
-	print("SHOT SAVED: ", path)
-	get_tree().quit()
-
-func _say(text: String, secs: float) -> void:
-	center_label.text = text
-	say_timer = secs
+# ---------------------------------------------------------------- per-frame
 
 func _process(delta: float) -> void:
+	if shot_mode:
+		pass
+	else:
+		match st:
+			St.DEAD:
+				dead_t += delta
+				ui.set_dead_alpha(clampf(dead_t / 0.6, 0.0, 1.0) * 0.85)
+				if dead_t > 2.4:
+					_respawn()
+			St.PLAY:
+				_update_prompt()
+				_check_triggers()
+			St.TITLE:
+				ui.show_title(true)
+
 	if player == null:
 		return
-	blink_fill.size.x = 68.0 * player.blink_ratio()
-	batt_fill.size.x = 68.0 * player.battery_ratio()
 
-	# forced-blink warning: you must know it is coming, or the death is unfair
-	var br: float = player.blink_ratio()
-	if br < 0.18:
-		var warn: float = 0.35 + 0.65 * absf(sin(float(Time.get_ticks_msec()) / 90.0))
-		blink_label.modulate = Color(1.0, 0.45, 0.4, warn)
-		blink_fill.color = Color(0.95, 0.35, 0.30)
-	else:
-		blink_label.modulate = Color(1, 1, 1, 1)
-		blink_fill.color = Color("7fb2d6")
-	card_label.text = "KEYCARD: %s" % ("LV1" if player.card_level >= 1 else "NONE")
-	blink_overlay.color.a = 0.0 if player.eyes_open else 0.97
+	# flicker
+	for l in flicker:
+		var base: float = 1.5 * 0.55
+		l.energy = base * (0.55 + 0.45 * sin(Time.get_ticks_msec() / 130.0 + l.position.x))
+		if randf() < 0.004:
+			l.energy = base * 0.1
 
-	# pressure: the panel bleeds red while it is close and you cannot see it
-	if scp:
-		var d: float = player.position.distance_to(scp.position)
-		var seen: bool = player.can_see(scp.position)
-		var danger := 0.0
-		if not seen:
-			danger = clampf(1.0 - d / 190.0, 0.0, 1.0)
-		var pulse: float = 0.55 + 0.45 * sin(float(Time.get_ticks_msec()) / 210.0)
-		vignette.modulate = Color(0.62, 0.05, 0.05, danger * danger * 0.9 * pulse)
-
-	shake_amt = maxf(0.0, shake_amt - delta * 9.0)
 	if cam:
-		cam.offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * shake_amt
+		if st != St.PLAY:
+			cam.offset = Vector2.ZERO
+		else:
+			cam.offset = cam.offset.lerp(Vector2.ZERO, clampf(delta * 8.0, 0.0, 1.0))
 
-	if say_timer > 0.0:
-		say_timer -= delta
-		if say_timer <= 0.0:
-			center_label.text = ""
+	var danger := 0.0
+	if scp and st == St.PLAY:
+		var d: float = player.position.distance_to(scp.position)
+		if not player.can_see(scp.position):
+			danger = clampf(1.0 - d / 200.0, 0.0, 1.0)
+		if danger > 0.35:
+			audio.set_heartbeat(true)
+		else:
+			audio.set_heartbeat(false)
 
-	if state == "play":
-		_pickup_check()
-		_door_check()
-		_exit_check()
+	ui.tick(delta, player.blink_ratio(), player.battery_ratio(), card_level, player.eyes_open, danger)
 
-func _pickup_check() -> void:
-	if card_taken:
-		return
-	if player.position.distance_to(card_pos) < 11.0:
-		card_taken = true
-		player.card_level = 1
-		card_node.queue_free()
-		_say("LEVEL 1 KEYCARD ACQUIRED", 2.0)
+# ---------------------------------------------------------------- interaction
 
-func _door_check() -> void:
+func _update_prompt() -> void:
+	prompt = {}
+	var best := 34.0
 	for d in doors:
 		if d.open:
 			continue
-		var center := Vector2(d.cell.x * TILE + 8, d.cell.y * TILE + 8)
-		if player.position.distance_to(center) < 20.0:
-			if player.card_level >= 1:
-				d.open = true
-				d.body.queue_free()
-				d.vis.color = Color("2f6b3a")
-				d.stripe.color = Color("7bd08a")
-				_say("DOOR UNLOCKED", 1.5)
+		var dist: float = player.position.distance_to(d.center)
+		if dist < best and dist < 40.0:
+			best = dist
+			var txt := "E  OPEN DOOR" if card_level >= d.level else "LOCKED — LV%d KEYCARD" % d.level
+			prompt = {"kind": "door", "ref": d, "text": txt}
+	for it in items:
+		if it.taken:
+			continue
+		var dist: float = player.position.distance_to(it.pos)
+		if dist < best and dist < 28.0:
+			best = dist
+			var txt := ""
+			match it.kind:
+				"card": txt = "E  TAKE %s" % it.data.label
+				"doc": txt = "E  READ"
+				"save": txt = "E  SAVE"
+			prompt = {"kind": it.kind, "ref": it, "text": txt}
+	if prompt.is_empty():
+		ui.set_prompt("")
+	else:
+		ui.set_prompt(prompt.text)
+
+func _interact() -> void:
+	if prompt.is_empty():
+		return
+	match prompt.kind:
+		"door":
+			var d = prompt.ref
+			if card_level >= d.level:
+				_open_door(d)
 			else:
-				_say("LEVEL 1 KEYCARD REQUIRED", 1.0)
+				audio.play("keycard_deny.wav", -3.0)
+				ui.set_prompt("LOCKED — LV%d KEYCARD" % d.level)
+		"card":
+			var it = prompt.ref
+			it.taken = true
+			it.node.queue_free()
+			card_level = maxi(card_level, int(it.data.level))
+			audio.play("pickup.wav", -2.0)
+			ui.set_objective("OPEN THE CHECKPOINT DOOR" if card_level == 1 else "GET TO THE EXIT")
+		"doc":
+			st = St.DOC
+			player.freeze = true
+			ui.show_doc(prompt.ref.data.title, prompt.ref.data.body)
+			audio.play("pickup.wav", -8.0)
+		"save":
+			save_pos = player.position
+			audio.play("keycard_beep.wav", -3.0)
+			ui.set_objective("PROGRESS SAVED")
 
-func _exit_check() -> void:
-	if exit_zone.has_point(player.position):
-		state = "won"
-		player.freeze = true
-		_say("ESCAPED  —  PRESS R", 999.0)
+func _open_door(d) -> void:
+	d.open = true
+	if d.body:
+		d.body.queue_free()
+	for p in d.panels:
+		if p is Sprite2D and Assets.has_art("tiles/door_panel_open.png"):
+			p.texture = Assets.tex("tiles/door_panel_open.png")
+		elif p is Polygon2D:
+			p.color = Color("2f6b3a")
+	audio.play("door_hiss.wav", -4.0)
 
-func _on_player_died() -> void:
-	state = "dead"
-	_say("YOU DIED  —  PRESS R", 999.0)
+func _check_triggers() -> void:
+	if exit_zone.size.x > 0 and exit_zone.has_point(player.position):
+		_win()
+
+# ---------------------------------------------------------------- input
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo:
-		if event.physical_keycode == KEY_R:
-			get_tree().reload_current_scene()
-		elif event.physical_keycode == KEY_ESCAPE:
-			get_tree().quit()
+	if not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	var k: int = event.physical_keycode
+	match st:
+		St.TITLE:
+			if k == KEY_ENTER or k == KEY_KP_ENTER or k == KEY_SPACE:
+				_start_game()
+		St.PLAY:
+			if k == KEY_E:
+				_interact()
+			elif k == KEY_ESCAPE:
+				st = St.PAUSE
+				player.freeze = true
+				ui.show_pause(true)
+		St.PAUSE:
+			if k == KEY_ESCAPE:
+				st = St.PLAY
+				player.freeze = false
+				ui.show_pause(false)
+			elif k == KEY_Q:
+				get_tree().quit()
+		St.DOC:
+			if k == KEY_E or k == KEY_ESCAPE:
+				ui.hide_doc()
+				st = St.PLAY
+				player.freeze = false
+		St.END:
+			if k == KEY_ESCAPE:
+				get_tree().quit()
+			elif k == KEY_R:
+				get_tree().reload_current_scene()
