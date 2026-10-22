@@ -38,10 +38,12 @@ static var next_level := ""
 static var carry_card := 0
 static var carry_playing := false
 static var scenario_consumed := false
-var docs_found: Dictionary = {}
+static var docs_found: Dictionary = {}
 var has_nvg := false
 var breakers: Dictionary = {}
 var powered := false
+var broadcast := false
+var nuke := false
 var ambient := 1.0
 var deny_t := 0.0
 var _sc_fail := 0
@@ -318,7 +320,7 @@ func _validate_level(arg: String) -> void:
 		elif not seen.has(c4):
 			problems.append("document %s is unreachable at %s" % [did, c4])
 
-	var allowed := ["say", "objective", "sound", "fade", "teleport", "activate_scp", "end_act", "wait", "blackout", "save", "goto_level", "state"]
+	var allowed := ["say", "objective", "sound", "fade", "teleport", "activate_scp", "end_act", "wait", "blackout", "save", "goto_level", "state", "door", "ending"]
 	for t in lv.get("triggers", []):
 		if not t.has("actions"):
 			continue
@@ -475,24 +477,6 @@ func _scenarios() -> Dictionary:
 			{ "do": "wait", "secs": 0.3 },
 			{ "do": "assert_powered", "label": "three breakers restore partial power" },
 		],
-		"act2_exit": [
-			{ "do": "teleport", "to": [25.0, 14.0] },
-			{ "do": "wait", "secs": 0.2 },
-			{ "do": "interact" },
-			{ "do": "teleport", "to": [5.0, 13.0] },
-			{ "do": "wait", "secs": 0.2 },
-			{ "do": "interact" },
-			{ "do": "teleport", "to": [19.0, 21.0] },
-			{ "do": "wait", "secs": 0.2 },
-			{ "do": "interact" },
-			{ "do": "set_card", "value": "3" },
-			{ "do": "teleport", "to": [24.0, 20.5] },
-			{ "do": "wait", "secs": 0.2 },
-			{ "do": "interact" },
-			{ "do": "teleport", "to": [29.5, 21.5] },
-			{ "do": "wait", "secs": 2.8 },
-			{ "do": "assert_state", "value": "END", "label": "act II ends at the lift" },
-		],
 		"act2_lockdown": [
 			{ "do": "teleport", "to": [24.5, 8.2] },
 			{ "do": "set_card", "value": "2" },
@@ -502,6 +486,37 @@ func _scenarios() -> Dictionary:
 			{ "do": "apply_state", "name": "lockdown" },
 			{ "do": "wait", "secs": 0.2 },
 			{ "do": "assert_ambient_below", "value": "0.5", "label": "lockdown drops the ambient light" },
+		],
+		"act3_enter": [
+			{ "do": "near", "to": [27.0, 4.5], "tol": 30.0, "label": "spawns in the EZ lift lobby" },
+			{ "do": "assert_state", "value": "PLAY", "label": "act III starts playable" },
+		],
+		"act3_049": [
+			{ "do": "teleport", "to": [18.0, 5.0] },
+			{ "do": "wait", "secs": 6.0 },
+			{ "do": "assert_scp_seen", "value": "1", "type": "049", "label": "049 turns a body into a patient" },
+		],
+		"act3_gate": [
+			{ "do": "teleport", "to": [7.5, 13.0] },
+			{ "do": "wait", "secs": 0.3 },
+			{ "do": "interact" },
+			{ "do": "wait", "secs": 0.4 },
+			{ "do": "assert_doors_closed", "label": "pulling the gate re-locks every door" },
+			{ "do": "assert_ambient_below", "value": "0.5", "label": "and drops the lights" },
+		],
+		"act3_endings": [
+			{ "do": "teleport", "to": [10.5, 4.5] },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
+			{ "do": "teleport", "to": [30.5, 4.5] },
+			{ "do": "wait", "secs": 1.6 },
+			{ "do": "assert_state", "value": "END", "label": "gate A with a broadcast ends the run" },
+			{ "do": "assert_end_key", "value": "end_captured", "label": "and it is the containment ending" },
+		],
+		"act3_mtf": [
+			{ "do": "teleport", "to": [21.0, 5.0] },
+			{ "do": "wait", "secs": 0.6 },
+			{ "do": "assert_no_scp", "value": "mtf", "label": "MTF exists only as sound and light" },
 		],
 		"fixture_spawn": [
 			{ "do": "near", "to": [2.5, 2.5], "tol": 24.0, "label": "booted into the level passed by --level" },
@@ -614,6 +629,15 @@ func _scenario_run(name: String) -> void:
 					if String(e["type"]) == want_t:
 						got = int(e["node"].call("get_seen"))
 				_sc_ok(got >= int(step["value"]), String(step.get("label", "scp seen")), "seen=%d" % got)
+			"assert_no_scp":
+				var found := false
+				for e in scps:
+					if String(e["type"]) == String(step["value"]):
+						found = true
+				_sc_ok(not found, String(step.get("label", "no scp")), "found one")
+			"assert_end_key":
+				_sc_ok(String(ui.e_title.text) == I18n.t(String(step["value"])), String(step.get("label", "ending")),
+					"got %s" % ui.e_title.text)
 			"assert_deaths":
 				_sc_ok(deaths > 0, String(step.get("label", "deaths")), "deaths=%d" % deaths)
 			"assert_toast":
@@ -676,6 +700,18 @@ func _apply_args() -> void:
 			scp.position = Vector2(9.0, 5.0) * TILE
 		player.position = Vector2(13.0, 5.0) * TILE
 		_shot("demo_shot12.png")
+		return
+	if a.has("--shot13"):
+		shot_mode = true
+		st = St.PLAY
+		ui.show_title(false)
+		ui.fade_to(0.0, 0.01)
+		player.use_mouse_aim = false
+		player.facing = Vector2.LEFT
+		card_level = 3
+		ui.set_objective("obj_a3_elec")
+		player.position = Vector2(20.0, 5.0) * TILE
+		_shot("demo_shot13.png")
 		return
 	if a.has("--shot11"):
 		shot_mode = true
@@ -1056,8 +1092,8 @@ func _build_doors() -> void:
 		var cells := []
 		for c in d["cells"]:
 			cells.append(Vector2i(int(c[0]), int(c[1])))
-		doors.append(_make_door(cells, int(d["level"])))
-func _make_door(cells: Array, level: int) -> Dictionary:
+		doors.append(_make_door(cells, int(d["level"]), String(d.get("id", ""))))
+func _make_door(cells: Array, level: int, door_id: String = "") -> Dictionary:
 	var body := StaticBody2D.new()
 	body.collision_layer = 1
 	body.collision_mask = 0
@@ -1086,7 +1122,7 @@ func _make_door(cells: Array, level: int) -> Dictionary:
 			panels.append(_quad(Rect2(pos - Vector2(8, 8), Vector2(16, 16)), Color("8a5a22"), 2))
 		if Assets.has_art("tiles/door_frame.png"):
 			_sprite("tiles/door_frame.png", pos, 1)
-	return {"cells": cells, "level": level, "body": body, "panels": panels, "shapes": shapes,
+	return {"cells": cells, "level": level, "body": body, "panels": panels, "shapes": shapes, "id": door_id,
 			"open": false, "force_t": 0.0,
 			"center": Vector2(cells[0].x * TILE + 8, cells[0].y * TILE + 8)}
 
@@ -1117,6 +1153,26 @@ func _build_triggers() -> void:
 			"actions": t.get("actions", []),
 			"fired": false
 		})
+func _resolve_ending(gate: String) -> void:
+	if st == St.END:
+		return
+	var key := ""
+	if gate == "a":
+		key = "end_captured" if broadcast else "end_taken"
+	else:
+		key = "end_erased" if nuke else "end_executed"
+	st = St.END
+	player.freeze = true
+	ui.fade_to(0.0, 0.01)
+	ui.fade_to(1.0, 1.0)
+	ui.show_end(true, key, key + "_sub")
+	var critical := 0
+	for k in ["dressing_note", "incident_log_1", "power_permit"]:
+		if docs_found.has(k):
+			critical += 1
+	if critical >= 3:
+		ui.say(I18n.t("end_report"), 8.0)
+
 func _apply_state(name: String) -> void:
 	var defs: Dictionary = level.get("states", {})
 	if not defs.has(name):
@@ -1188,6 +1244,12 @@ func _run_actions(actions: Array) -> void:
 				burst = float(act.get("secs", 1.0))
 			"state":
 				_apply_state(String(act.get("name", "")))
+			"door":
+				for d in doors:
+					if String(d.get("id", "")) == String(act.get("id", "")):
+						_set_door(d, bool(act.get("open", true)))
+			"ending":
+				_resolve_ending(String(act.get("gate", "b")))
 			"goto_level":
 				carry_card = card_level
 				carry_playing = true
@@ -1261,12 +1323,21 @@ func _spawn_scp() -> void:
 				node.set_script(load("res://scripts/scp895.gd"))
 			"372":
 				node.set_script(load("res://scripts/scp372.gd"))
+			"049":
+				node.set_script(load("res://scripts/scp049.gd"))
 			_:
 				node.set_script(load("res://scripts/scp173.gd"))
 		node.position = pos
 		add_child(node)
 		if t == "895":
 			node.call("setup", player, Rect2(22 * TILE, 3 * TILE, 7 * TILE, 6 * TILE))
+		elif t == "049":
+			var pts: Array = []
+			for p in level["props"]:
+				if String(p["art"]) == "corpse.png":
+					var pa: Array = p["at"]
+					pts.append(Vector2(float(pa[0]), float(pa[1])) * TILE)
+			node.call("setup", player, pts, self)
 		else:
 			node.call("setup", player)
 		scps.append({"type": t, "node": node})
@@ -1278,6 +1349,17 @@ func _spawn_scp() -> void:
 		scp.connect("stepped", _on_scp_stepped)
 	if scp == null:
 		scp_type = ""
+
+func spawn_patient(at: Vector2) -> void:
+	if scps.size() > 12:
+		return
+	var node := Node2D.new()
+	node.name = "Patient"
+	node.set_script(load("res://scripts/patient.gd"))
+	node.position = at
+	add_child(node)
+	node.call("setup", player)
+	scps.append({"type": "patient", "node": node})
 
 func _activate_all() -> void:
 	for e in scps:
@@ -1556,6 +1638,9 @@ func _update_prompt() -> void:
 				"nvg": txt = I18n.t("prompt_nvg")
 				"breaker": txt = I18n.t("prompt_breaker")
 				"machine": txt = I18n.t("prompt_914")
+				"broadcast": txt = I18n.t("prompt_broadcast")
+				"nuke": txt = I18n.t("prompt_nuke")
+				"gate_switch": txt = I18n.t("prompt_gate_switch")
 			prompt = {"kind": it.kind, "ref": it, "text": txt, "pos": it.pos}
 	if prompt.is_empty():
 		ui.set_prompt("")
@@ -1624,6 +1709,24 @@ func _interact() -> void:
 			st = St.MACHINE
 			player.freeze = true
 			ui.show_doc(I18n.t("ui_914"), I18n.t("ui_914_body"))
+		"broadcast":
+			var ib = prompt.ref
+			ib.taken = true
+			ib.node.queue_free()
+			broadcast = true
+			audio.play("alarm_loop.wav", -6.0)
+			ui.say(I18n.t("say_broadcast"), 2.6)
+		"nuke":
+			var inu = prompt.ref
+			inu.taken = true
+			inu.node.queue_free()
+			nuke = true
+			audio.play("alarm_loop.wav", -4.0)
+			ui.say(I18n.t("say_nuke"), 2.6)
+		"gate_switch":
+			_apply_state("lockdown")
+			audio.play("door_close.wav", -2.0)
+			ui.say(I18n.t("say_gate_switch"), 3.2)
 		"vending":
 			var roll := randf()
 			if roll < 0.25:
