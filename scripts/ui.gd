@@ -114,7 +114,33 @@ func _vignette_texture(px: int) -> ImageTexture:
 			img.set_pixel(x, y, Color(1, 1, 1, a))
 	return ImageTexture.create_from_image(img)
 
+func _gradient(w: int, h: int, a_top: float, a_bottom: float) -> ImageTexture:
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	for y in h:
+		var a: float = lerpf(a_top, a_bottom, float(y) / float(maxi(1, h - 1)))
+		for x in w:
+			img.set_pixel(x, y, Color(0, 0, 0, a))
+	return ImageTexture.create_from_image(img)
+
 func _build_hud() -> void:
+	var top_bar := TextureRect.new()
+	top_bar.texture = _gradient(4, 24, 0.55, 0.0)
+	top_bar.position = Vector2(0, 0)
+	top_bar.size = Vector2(480, 24)
+	top_bar.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	top_bar.stretch_mode = TextureRect.STRETCH_SCALE
+	top_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(top_bar)
+
+	var bot_bar := TextureRect.new()
+	bot_bar.texture = _gradient(4, 52, 0.0, 0.72)
+	bot_bar.position = Vector2(0, 218)
+	bot_bar.size = Vector2(480, 52)
+	bot_bar.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bot_bar.stretch_mode = TextureRect.STRETCH_SCALE
+	bot_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(bot_bar)
+
 	blink_label = label("BLINK", 8, COL_DIM)
 	blink_label.position = Vector2(10, 226)
 	root.add_child(blink_label)

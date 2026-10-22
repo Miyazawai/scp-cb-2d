@@ -70,7 +70,7 @@ func _load_sprites() -> void:
 	_sprite = Sprite2D.new()
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_sprite.centered = true
-	_sprite.offset = Vector2(0, -8)
+	_sprite.offset = Vector2(0, -12)
 	_sprite.z_index = 3
 	_sprite.texture = _frames["down"][0]
 	add_child(_sprite)

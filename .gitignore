@@ -11,3 +11,7 @@ reference/
 # OS
 Thumbs.db
 .DS_Store
+
+# subagent scratch dirs
+assets/art/.*.tmpdir/
+*.tmp

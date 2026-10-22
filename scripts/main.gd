@@ -264,13 +264,11 @@ func _build_walls() -> void:
 
 			if _is_floor(x, y + 1):
 				if has_face:
-					var f := _sprite("tiles/wall_face.png", Vector2(c.x, y * TILE + 11), 1)
-					if f:
-						f.centered = true
+					# the face hangs into the floor tile below so the light can
+					# actually reach it (occluders only cover the wall tile itself)
+					_sprite("tiles/wall_face.png", Vector2(c.x, y * TILE + TILE + 2), 1)
 				else:
 					_quad(Rect2(x * TILE, y * TILE + 10, TILE, 6), Color("4a5561"), 1)
-				if has_shadow:
-					_sprite("tiles/wall_shadow.png", Vector2(c.x, (y + 1) * TILE + 3), -1)
 
 func _build_ao() -> void:
 	for y in MAP_H:
@@ -343,13 +341,13 @@ func _build_lights() -> void:
 		var l := PointLight2D.new()
 		l.texture = tex
 		l.texture_scale = 1.7
-		l.energy = energy * 1.5
+		l.energy = energy * 0.85
 		l.color = Color(1.0, 0.90, 0.78)
 		l.shadow_enabled = true
 		l.shadow_filter = Light2D.SHADOW_FILTER_PCF5
 		l.position = p
 		add_child(l)
-		lights_ref.append({"pos": p, "radius": 86.0})
+		lights_ref.append({"pos": p, "radius": 86.0, "node": l, "base": l.energy})
 		if flick:
 			flicker.append(l)
 
@@ -614,6 +612,19 @@ func _process(delta: float) -> void:
 			cm_node.color = Color(0.16, 0.175, 0.215) * k
 		else:
 			cm_node.color = Color(0.16, 0.175, 0.215)
+
+	# only the lights around the player are powered: distant rooms stay black,
+	# which keeps the wing's layout a mystery until you walk into it
+	for s in lights_ref:
+		var n: PointLight2D = s["node"]
+		if n == null:
+			continue
+		var dd: float = player.position.distance_to(s["pos"])
+		var falloff: float = clampf(1.0 - (dd - 108.0) / 42.0, 0.0, 1.0)
+		var want: float = float(s["base"]) * falloff
+		if flicker.has(n):
+			want *= 0.85
+		n.energy = lerpf(n.energy, want, clampf(delta * 6.0, 0.0, 1.0))
 
 	# flicker
 	for l in flicker:

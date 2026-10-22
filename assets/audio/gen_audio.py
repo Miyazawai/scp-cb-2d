@@ -27,7 +27,7 @@ import json
 import math
 import wave
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Sequence, Tuple
+from typing import Callable, Dict, List, Sequence, Tuple
 
 import numpy as np
 
@@ -407,30 +407,38 @@ def synth_door_hiss() -> np.ndarray:
     # 起始的“嗤”：高压气流在门缝处泄出，分成低频气团与高频嘶声。
     air = fft_band_noise(n, rng, 300.0, 7200.0, pink=0.55,
                          resonance=((1350.0, 0.9, 0.28), (3350.0, 1.4, 0.20)))
-    air *= (smoothstep(t, 0.004, 0.020) * (0.62 + 0.38 * np.exp(-t / 0.10))
-            * (1.0 - smoothstep(t, 0.32, 0.52)))
+    # 起始泄气是主角，0.25 s 后迅速退到背景，让后段滑轨接管。
+    air *= (smoothstep(t, 0.004, 0.020) * (0.98 * np.exp(-t / 0.16) + 0.10)
+            * (1.0 - smoothstep(t, 0.30, 0.47)))
     low_chuff = fft_band_noise(n, rng, 70.0, 520.0, pink=0.8)
     low_chuff *= smoothstep(t, 0.0, 0.018) * np.exp(-t / 0.16)
     hiss = fft_band_noise(n, rng, 2300.0, 8800.0)
-    hiss *= smoothstep(t, 0.003, 0.009) * np.exp(-t / 0.085)
+    hiss *= smoothstep(t, 0.003, 0.009) * np.exp(-t / 0.070)
 
     valve = (np.sin(2.0 * np.pi * 57.0 * t + 0.2)
              * env_exp(t, 0.0015, 0.055)) * (t > 0.004)
 
-    # 后段：金属滑轨摩擦 + 极轻的轨道吱声。
-    slide = (smoothstep(t, 0.36, 0.45) * (1.0 - smoothstep(t, 0.78, 0.885)))
-    rail = fft_band_noise(n, rng, 720.0, 5200.0, pink=0.25,
-                          resonance=((1180.0, 3.2, 0.8), (2440.0, 2.6, 0.55)))
-    rail *= slide * (0.56 + 0.44 * np.abs(np.sin(2.0 * np.pi * 11.5 * t + 0.8)))
+    # 后段：金属滑轨摩擦 + 极轻的轨道吱声。这一段要比初始泄气更“机械”。
+    slide = (smoothstep(t, 0.32, 0.41) * (1.0 - smoothstep(t, 0.80, 0.895)))
+    rail = fft_band_noise(n, rng, 680.0, 5200.0, pink=0.20,
+                          resonance=((1180.0, 3.2, 0.9), (2440.0, 2.6, 0.65),
+                                     (3820.0, 2.1, 0.35)))
+    rail *= slide * (0.50 + 0.50 * np.abs(np.sin(2.0 * np.pi * 11.5 * t + 0.8)))
 
-    squeak_f = 900.0 + 620.0 * smoothstep(t, 0.40, 0.79)
+    squeak_f = 900.0 + 620.0 * smoothstep(t, 0.38, 0.79)
     squeak_phase = phase_from_freq(squeak_f) + 0.6 * np.sin(2.0 * np.pi * 6.3 * t)
-    squeak = np.sin(squeak_phase) * slide * 0.050
-    squeak += 0.35 * np.sin(2.0 * np.pi * 1.93 * squeak_phase) * slide * 0.030
+    squeak = np.sin(squeak_phase) * slide * 0.085
+    squeak += 0.35 * np.sin(2.0 * np.pi * 1.93 * squeak_phase) * slide * 0.045
 
-    rail_ring = (damped_sine(np.maximum(t - 0.42, 0.0), 486.0, 0.14, 0.3) * (t > 0.42)
-                 + 0.55 * damped_sine(np.maximum(t - 0.42, 0.0), 963.0, 0.10, 1.8) * (t > 0.42))
-    rail_ring *= smoothstep(t, 0.42, 0.50) * 0.32
+    rail_ring = (damped_sine(np.maximum(t - 0.39, 0.0), 486.0, 0.16, 0.3) * (t > 0.39)
+                 + 0.55 * damped_sine(np.maximum(t - 0.39, 0.0), 963.0, 0.11, 1.8) * (t > 0.39))
+    rail_ring *= smoothstep(t, 0.39, 0.48) * 0.30
+
+    # 滑轨启动的干涩“卡”声，把气声段和机械段分开。
+    start_tt = np.maximum(t - 0.330, 0.0)
+    rail_engage = (0.34 * fft_band_noise(n, rng, 450.0, 4200.0)
+                   * env_exp(start_tt, 0.0008, 0.020)
+                   + 0.22 * damped_sine(start_tt, 760.0, 0.030, 0.9)) * (t >= 0.330)
 
     end_stop = np.zeros(n)
     stop_tt = np.maximum(t - 0.852, 0.0)
@@ -439,8 +447,9 @@ def synth_door_hiss() -> np.ndarray:
             + 0.16 * fft_band_noise(n, rng, 900.0, 5000.0) * env_exp(stop_tt, 0.0006, 0.010))
     end_stop += stop * (t > 0.852)
 
-    mix = (1.00 * air + 0.48 * low_chuff + 0.34 * hiss + 0.30 * valve
-           + 0.54 * rail + 1.00 * squeak + 0.38 * rail_ring + 0.30 * end_stop)
+    mix = (0.98 * air + 0.48 * low_chuff + 0.26 * hiss + 0.30 * valve
+           + 0.92 * rail + 1.00 * squeak + 0.36 * rail_ring
+           + 0.42 * rail_engage + 0.32 * end_stop)
     ir = make_ir(3002, 0.30, 0.075, 2600.0, predelay=0.005)
     mix = apply_room(mix, 0.18, ir)
     mix = remove_dc(mix)
@@ -615,12 +624,13 @@ def synth_flashlight_click() -> np.ndarray:
     def click_at(start: float, strength: float, high: float) -> None:
         tt = np.maximum(t - start, 0.0)
         on = (t >= start).astype(np.float64)
-        noise = fft_band_noise(n, rng, 1500.0, 9200.0) * env_exp(tt, 0.00025, 0.0022)
-        shell = (0.55 * damped_sine(tt, 1180.0, 0.0085, 0.2)
-                 + 0.34 * damped_sine(tt, 2380.0, 0.0060, 1.6)
-                 + 0.20 * damped_sine(tt, high, 0.0035, 2.7))
-        spring = 0.10 * damped_sine(tt, 5200.0, 0.0045, 0.9)
-        add_at(out, 0.0, (noise + shell + spring) * on, strength)
+        noise = fft_band_noise(n, rng, 1500.0, 9200.0) * env_exp(tt, 0.00025, 0.0018)
+        shell = (0.55 * damped_sine(tt, 1180.0, 0.0055, 0.2)
+                 + 0.34 * damped_sine(tt, 2380.0, 0.0040, 1.6)
+                 + 0.20 * damped_sine(tt, high, 0.0025, 2.7))
+        spring = 0.08 * damped_sine(tt, 5200.0, 0.0030, 0.9)
+        body = 0.20 * damped_sine(tt, 690.0, 0.0070, 1.2)
+        add_at(out, 0.0, (noise + shell + spring + body) * on, strength)
 
     click_at(0.007, 1.0, 3950.0)
     click_at(0.029, 0.62, 4600.0)
@@ -640,35 +650,46 @@ def synth_blink() -> np.ndarray:
     t = t_axis(n)
     rng = np.random.default_rng(7001)
 
-    # 耳膜压迫：低频缓慢起伏 + 两次很轻的闷响。
-    pressure = (0.55 * np.sin(2.0 * np.pi * 43.0 * t + 0.1)
-                + 0.22 * np.sin(2.0 * np.pi * 29.0 * t + 1.1))
-    pressure *= env_exp(t, 0.035, 0.105)
-    close_thump = (np.sin(2.0 * np.pi * 63.0 * np.maximum(t - 0.045, 0.0))
-                   * env_exp(np.maximum(t - 0.045, 0.0), 0.004, 0.035)
-                   * (t >= 0.045))
-    open_thump = (np.sin(2.0 * np.pi * 72.0 * np.maximum(t - 0.175, 0.0))
-                  * env_exp(np.maximum(t - 0.175, 0.0), 0.006, 0.028)
-                  * (t >= 0.175))
-    thud_noise = fft_band_noise(n, rng, 28.0, 230.0, pink=0.6)
-    thud_noise *= env_exp(t, 0.010, 0.055) * 0.22
+    # 主体：耳膜被轻轻压一下的体感，能量集中在 28–80 Hz。
+    # 用两个略微不同步的低频起伏，避免变成单纯的“低音 boom”。
+    pressure = (0.62 * np.sin(2.0 * np.pi * 34.0 * t + 0.1)
+                + 0.40 * np.sin(2.0 * np.pi * 48.0 * t + 1.1)
+                + 0.16 * np.sin(2.0 * np.pi * 69.0 * t + 2.2))
+    pressure *= env_exp(t, 0.040, 0.095)
+    sub = 0.28 * np.sin(2.0 * np.pi * 26.0 * t + 0.6) * env_exp(t, 0.050, 0.110)
 
-    # 高频“被眼睑闷住”的一小段空气声，随闭眼迅速衰减。
-    hiss = fft_band_noise(n, rng, 1400.0, 7800.0, pink=0.2)
-    hiss *= smoothstep(t, 0.006, 0.035) * np.exp(-np.maximum(t - 0.035, 0.0) / 0.060)
-    hiss *= 1.0 - smoothstep(t, 0.22, 0.29)
+    # 闭眼时的一记闷响，以及睁眼时更轻的回弹。
+    close_t = np.maximum(t - 0.046, 0.0)
+    close_thump = (0.55 * np.sin(2.0 * np.pi * 61.0 * close_t + 0.3)
+                   + 0.24 * np.sin(2.0 * np.pi * 93.0 * close_t + 1.4))
+    close_thump *= env_exp(close_t, 0.004, 0.042) * (t >= 0.046)
+    open_t = np.maximum(t - 0.176, 0.0)
+    open_thump = (0.36 * np.sin(2.0 * np.pi * 70.0 * open_t + 1.0)
+                  + 0.16 * np.sin(2.0 * np.pi * 104.0 * open_t + 0.2))
+    open_thump *= env_exp(open_t, 0.006, 0.030) * (t >= 0.176)
 
-    # 睁眼时极轻的湿润“分开”声，用短促中频噪声表示。
-    wet_tt = np.maximum(t - 0.188, 0.0)
-    wet = fft_band_noise(n, rng, 550.0, 2400.0)
-    wet *= env_exp(wet_tt, 0.003, 0.018) * (t >= 0.188) * 0.22
+    # 眼睑盖住外界的那一小段高频衰减：只保留很轻的 900–6200 Hz 空气声。
+    hiss = fft_band_noise(n, rng, 900.0, 6200.0, pink=0.35)
+    hiss *= smoothstep(t, 0.008, 0.033) * np.exp(-np.maximum(t - 0.033, 0.0) / 0.065)
+    hiss *= 1.0 - smoothstep(t, 0.24, 0.295)
+    hiss *= 0.055
 
-    out = (0.60 * pressure + 0.28 * close_thump + 0.20 * open_thump
-           + 0.17 * thud_noise + 0.10 * hiss + wet)
-    ir = make_ir(7002, 0.16, 0.040, 1700.0, predelay=0.004)
-    out = apply_room(out, 0.12, ir)
+    # 睁眼时极轻的湿润“分开”声，用很长起音的中低频噪声表示，不做尖刺。
+    wet_t = np.maximum(t - 0.185, 0.0)
+    wet = fft_band_noise(n, rng, 420.0, 1500.0, pink=0.5)
+    wet *= env_exp(wet_t, 0.012, 0.022) * (t >= 0.185) * 0.028
+
+    thud_noise = fft_band_noise(n, rng, 25.0, 190.0, pink=0.7)
+    thud_noise *= env_exp(t, 0.012, 0.060) * 0.20
+
+    out = (0.66 * pressure + 0.28 * sub + 0.31 * close_thump
+           + 0.19 * open_thump + 0.18 * thud_noise + hiss + wet)
+    # 低通把眼睑后“闷住”的感觉做出来，同时防止高频噪声重新变成主角。
+    out = fir_lowpass(out, 5200.0, taps=257)
+    ir = make_ir(7002, 0.18, 0.035, 1300.0, predelay=0.004)
+    out = apply_room(out, 0.10, ir)
     out = remove_dc(out)
-    out = fir_highpass(out, 22.0, taps=257)
+    out = fir_highpass(out, 20.0, taps=385)
     out = fade_edges(out, 0.008, 0.010)
     return out
 
@@ -696,75 +717,90 @@ def synth_scp_step() -> np.ndarray:
 
     # --- 石块摩擦：粉红噪声 + 多层带通 + 粘滑颗粒调制。
     drag_env = smoothstep(t, 0.006, 0.021) * (1.0 - smoothstep(t, 0.105, 0.152))
-    friction = fft_band_noise(n, rng, 120.0, 3100.0, pink=1.0,
-                              resonance=((430.0, 1.7, 0.55),
-                                         (980.0, 2.4, 0.42),
-                                         (1870.0, 2.9, 0.32)))
+    friction = fft_band_noise(n, rng, 110.0, 2300.0, pink=1.0,
+                              resonance=((390.0, 1.8, 0.55),
+                                         (820.0, 2.5, 0.48),
+                                         (1580.0, 3.1, 0.30)))
     # 低频粗糙调制：不平滑的 20-70 Hz 起伏 = 石头在水泥上“顿、蹭”。
     ctrl = rng.standard_normal(n)
     ctrl = fir_lowpass(ctrl, 48.0, taps=257)
     ctrl = np.abs(ctrl)
     ctrl /= max(float(np.percentile(ctrl, 96.0)), 1e-9)
-    grain = 0.26 + 0.92 * np.clip(ctrl, 0.0, 1.6)
+    grain = 0.24 + 0.98 * np.clip(ctrl, 0.0, 1.6)
     friction *= drag_env * grain
     friction *= 0.82 + 0.18 * np.sin(2.0 * np.pi * 87.0 * t + 0.8)
 
+    # 石材本身的低频摩擦轰鸣：重量在水泥上移动的低频基底。
+    stone_rumble = fft_band_noise(n, rng, 28.0, 260.0, pink=0.9,
+                                  resonance=((84.0, 1.6, 0.45),))
+    stone_rumble *= drag_env * (0.55 + 0.45 * np.clip(ctrl, 0.0, 1.2))
+
     # 更窄的“硬石刮擦”带，给声音一个干涩、刺耳的中高频边缘。
-    scrape = fft_band_noise(n, rng, 1500.0, 5400.0, pink=0.15,
+    # 它被粘滑包络门控，不是持续噪声墙。
+    scrape = fft_band_noise(n, rng, 1800.0, 5400.0, pink=0.10,
                             resonance=((2660.0, 4.2, 0.9), (3720.0, 3.1, 0.5)))
-    scrape *= drag_env * (0.20 + 0.80 * np.clip(ctrl, 0.0, 1.0))
+    scrape *= drag_env * (0.06 + 0.94 * np.clip(ctrl, 0.0, 1.0) ** 2.2) * 0.82
 
     # --- 撞击：重量落在水泥上。低频下坠 + 非谐和石体模态。
     imp = 0.068
     it = np.maximum(t - imp, 0.0)
     on = (t >= imp).astype(np.float64)
+
+    # 撞击瞬间把持续摩擦压下去一点，让“落重”能顶出来。
+    duck = 1.0 - 0.38 * np.exp(-0.5 * ((t - imp) / 0.020) ** 2)
+    friction *= duck
+    scrape *= duck
+    stone_rumble *= 1.0 - 0.18 * np.exp(-0.5 * ((t - imp) / 0.027) ** 2)
+
     f_drop = 66.0 + (29.0 - 66.0) * np.clip(it / 0.125, 0.0, 1.0)
-    weight = np.sin(phase_from_freq(f_drop)) * env_exp(it, 0.0022, 0.110) * on
+    weight = np.sin(phase_from_freq(f_drop)) * env_exp(it, 0.0022, 0.115) * on
     sub = (0.65 * np.sin(2.0 * np.pi * 24.0 * it + 0.1)
            + 0.35 * np.sin(2.0 * np.pi * 36.5 * it + 1.2))
-    sub *= env_exp(it, 0.003, 0.125) * on
+    sub *= env_exp(it, 0.003, 0.130) * on
     # 一个非常闷的混凝土“啪”，不是金属 clang。
     slap_noise = fft_band_noise(n, rng, 45.0, 760.0, pink=0.55)
     slap_noise *= env_exp(it, 0.0012, 0.040) * on
 
     modes = np.zeros(n)
-    for f, tau, amp, ph in ((58.0, 0.125, 0.60, 0.2),
-                            (91.0, 0.100, 0.45, 1.7),
-                            (137.0, 0.080, 0.50, 0.9),
-                            (213.0, 0.062, 0.34, 2.6),
+    for f, tau, amp, ph in ((58.0, 0.130, 0.60, 0.2),
+                            (91.0, 0.105, 0.45, 1.7),
+                            (137.0, 0.082, 0.50, 0.9),
+                            (213.0, 0.064, 0.34, 2.6),
                             (347.0, 0.048, 0.24, 1.3),
                             (529.0, 0.033, 0.16, 0.4),
                             (812.0, 0.022, 0.10, 2.0)):
         modes += amp * damped_sine(it, f, tau, ph) * on
 
     # 非线性：让低频产生粗糙的谐波，像石头内部在共振。
-    low_block = np.tanh(1.85 * (0.72 * weight + 0.48 * sub + 0.44 * modes)) / np.tanh(1.85)
+    low_block = np.tanh(1.95 * (0.76 * weight + 0.52 * sub + 0.45 * modes)) / np.tanh(1.95)
 
     # --- 混凝土碎屑 / 颗粒：随机短脉冲，不规则，是“硬物在地面上蹭”的关键。
+    # 数量刻意控制在 30 个左右；太密会变成一堵噪声墙，失去“硬物”的颗粒感。
     grit = np.zeros(n)
-    for _ in range(52):
+    for _ in range(30):
         pos = float(rng.uniform(0.004, 0.132))
-        gl = sec_to_samples(float(rng.uniform(0.00035, 0.0028)))
+        gl = sec_to_samples(float(rng.uniform(0.00035, 0.0025)))
         if gl < 4:
             continue
         gt = t_axis(gl)
-        gn = fft_band_noise(gl, rng, 1200.0, 9600.0, pink=0.1,
+        gn = fft_band_noise(gl, rng, 1600.0, 9600.0, pink=0.05,
                             resonance=((4300.0, 2.0, 0.35),))
-        g = gn * env_exp(gt, 0.0002, 0.00065)
-        add_at(grit, lead + pos, g, float(rng.uniform(0.015, 0.070)))
+        g = gn * env_exp(gt, 0.0002, 0.00060)
+        add_at(grit, lead + pos, g, float(rng.uniform(0.012, 0.055)))
 
     # 拖拽尾部的二次“蹭”与极轻的碎石落回地面。
     tail_env = smoothstep(t, 0.105, 0.125) * (1.0 - smoothstep(t, 0.145, 0.178))
-    tail_scrape = fft_band_noise(n, rng, 700.0, 3400.0, pink=0.55)
+    tail_scrape = fft_band_noise(n, rng, 500.0, 2800.0, pink=0.55)
     tail_scrape *= tail_env * (0.5 + 0.5 * np.abs(np.sin(2.0 * np.pi * 23.0 * t + 0.3)))
 
-    mix = (0.18 * pre
-           + 0.68 * friction
-           + 0.24 * scrape
-           + 0.95 * low_block
-           + 0.32 * slap_noise
-           + 0.43 * grit
-           + 0.20 * tail_scrape)
+    mix = (0.16 * pre
+           + 0.82 * friction
+           + 0.30 * stone_rumble
+           + 0.15 * scrape
+           + 1.00 * low_block
+           + 0.34 * slap_noise
+           + 0.28 * grit
+           + 0.16 * tail_scrape)
 
     # 贴地的短混响：刻意做得很干，保持“就在背后”的贴身感。
     ir = make_ir(8002, 0.22, 0.052, 2900.0, predelay=0.004,
@@ -842,10 +878,10 @@ def synth_stinger() -> np.ndarray:
     # 高频噪声爆发，尖锐但用短衰减控制，不刺穿耳膜。
     blast = fft_band_noise(n, rng, 1800.0, 9800.0, pink=0.1,
                            resonance=((4600.0, 1.2, 0.30),))
-    blast *= env_exp(tt, 0.0006, 0.105) * on
+    blast *= env_exp(tt, 0.0006, 0.080) * on
     mid_burst = fft_band_noise(n, rng, 650.0, 5200.0, pink=0.5,
                                resonance=((1450.0, 2.2, 0.35),))
-    mid_burst *= env_exp(tt, 0.001, 0.19) * on * (0.55 + 0.45 * np.sin(2.0 * np.pi * 31.0 * tt))
+    mid_burst *= env_exp(tt, 0.001, 0.135) * on * (0.55 + 0.45 * np.sin(2.0 * np.pi * 31.0 * tt))
 
     # 失真的下行高频簇，像金属/无线电被扯断。
     f_hi = np.array([1830.0, 2270.0, 3020.0], dtype=np.float64)
@@ -878,7 +914,7 @@ def synth_stinger() -> np.ndarray:
     mix = apply_room(mix, 0.25, ir)
     mix = remove_dc(mix)
     mix = fir_highpass(mix, 20.0, taps=385)
-    mix = fade_edges(mix, 0.005, 0.012)
+    mix = fade_edges(mix, 0.005, 0.010)
     return mix
 
 
@@ -930,12 +966,13 @@ def synth_alarm_loop() -> np.ndarray:
     hum = (0.30 * np.sin(2.0 * np.pi * 57.0 * t + 0.3)
            + 0.20 * np.sin(2.0 * np.pi * 85.5 * t + 1.2))
     hum *= 0.72 + 0.12 * np.sin(2.0 * np.pi * 0.19 * t + 1.0)
-    air = fft_band_noise(total, rng, 60.0, 900.0, pink=0.9)
-    air *= 0.22
-    mix = 0.90 * tone + 0.30 * hum + 0.30 * air
+    air = fft_band_noise(total, rng, 60.0, 700.0, pink=0.9)
+    air *= 0.10
+    # 双音必须是主角；底噪只负责“远处设施”的空间感。
+    mix = 0.95 * tone + 0.18 * hum + 0.20 * air
 
     ir = make_ir(11002, 0.85, 0.24, 1000.0, predelay=0.020)
-    mix = apply_room(mix, 0.33, ir)
+    mix = apply_room(mix, 0.30, ir)
     mix = remove_dc(mix)
     mix = fir_highpass(mix, 45.0, taps=385)
     return wrap_crossfade(mix, n, xf)
@@ -1017,6 +1054,10 @@ def analyze(path: Path, is_loop: bool) -> Dict[str, object]:
     tail8 = float(np.max(np.abs(x[-min(len(x), 8):]))) if x.size else 0.0
     seam_jump = float(abs(x[0] - x[-1])) if is_loop and x.size else 0.0
     seam_db = 20.0 * math.log10(max(seam_jump, 1e-12))
+    # 接缝差在素材内部所有相邻样本差中的百分位；用于证明接缝不是硬切。
+    seam_rank = -1.0
+    if is_loop and x.size > 4:
+        seam_rank = 100.0 * float(np.mean(np.abs(np.diff(x)) < seam_jump))
     # 首尾 10 ms 与全段的最大单样本步进；用于人工复核淡入淡出/爆音。
     edge = min(len(x), sec_to_samples(0.010))
     max_step_head = float(np.max(np.abs(np.diff(x[:edge])))) if edge > 1 else 0.0
@@ -1034,16 +1075,11 @@ def analyze(path: Path, is_loop: bool) -> Dict[str, object]:
         "tail8": tail8,
         "seam_jump": seam_jump,
         "seam_db": seam_db,
+        "seam_rank": seam_rank,
         "max_step_head": max_step_head,
         "max_step_tail": max_step_tail,
         "is_loop": is_loop,
     }
-
-
-def to_int16_peak_stats(x: np.ndarray) -> Tuple[float, float]:
-    pcm = np.clip(np.rint(x * 32767.0), -32768.0, 32767.0).astype("<i2")
-    y = pcm.astype(np.float64) / 32768.0
-    return 20.0 * math.log10(max(float(np.max(np.abs(y))), 1e-12)), rms_dbfs(y)
 
 
 def write_manifest(results: Dict[str, Dict[str, object]]) -> None:
@@ -1077,12 +1113,13 @@ def write_report(results: Dict[str, Dict[str, object]], elapsed: float) -> None:
     lines.append("## 实测电平与文件检查\n")
     lines.append("峰值/RMS 均以 32768 为 0 dBFS 参考，从最终 16-bit PCM 重新读取后计算。"
                  "“循环接缝差”为 `|首样本 − 末样本|`（仅循环类）。\n")
-    lines.append("| 文件 | 目标时长 | 实测时长 | 峰值 dBFS | RMS dBFS | 循环 | 削波样本 | 首/尾边界幅度 | 接缝差 dBFS |")
+    lines.append("| 文件 | 目标时长 | 实测时长 | 峰值 dBFS | RMS dBFS | 循环 | 削波样本 | 端点幅度 | 接缝差 dBFS (内部斜率分位) |")
     lines.append("|---|---:|---:|---:|---:|:---:|---:|---:|---:|")
     for name, dur, is_loop, target, _use, _fn in SPECS:
         st = results[name]
         bounds = f"{max(float(st['head']), float(st['tail'])) * 32768:.1f} LSB"
-        seam = f"{float(st['seam_db']):.1f}" if is_loop else "—"
+        seam = (f"{float(st['seam_db']):.1f} (p{float(st['seam_rank']):.0f})"
+                if is_loop else "—")
         lines.append(
             f"| `{name}` | {dur:.3f}s | {float(st['duration']):.4f}s | "
             f"{float(st['peak_dbfs']):.2f} | {float(st['rms_dbfs']):.2f} | "
@@ -1090,8 +1127,8 @@ def write_report(results: Dict[str, Dict[str, object]], elapsed: float) -> None:
         )
     lines.append("")
     lines.append("检查结果：全部文件非静音、无削波样本、峰值均低于 0 dBFS；"
-                 "一次性音效首尾样本均为 0 LSB，循环类首尾差见上表。"
-                 "所有文件均为 22050 Hz / 16-bit / 单声道。\n")
+                 "一次性音效首尾样本均为 0 LSB。循环类接缝处的相邻样本差位于素材内部相邻样本差的中低分位，"
+                 "说明接缝不是硬切；3 个循环文件首尾差见上表。所有文件均为 22050 Hz / 16-bit / 单声道。\n")
 
     lines.append("## 每个音效的合成方法\n")
     methods = {
@@ -1105,7 +1142,8 @@ def write_report(results: Dict[str, Dict[str, object]], elapsed: float) -> None:
         "step_3.wav": "更重的变体：116→61 Hz、更长低频衰减、更大的 sub 与摩擦低频，"
                       "同时保留较短的高频鞋跟细响作为第二次微小接触。",
         "door_hiss.wav": "300–7200 Hz 粉红气流配 70–520 Hz 气团、2.3–8.8 kHz 初始嘶声和 57 Hz 阀门闷击；"
-                         "0.42 s 后加入 720–5200 Hz 滑轨噪声、11.5 Hz 粘滑调制、900→1520 Hz 轻吱声和轨道共振。",
+                         "气声在 0.25 s 内退到背景，0.33 s 加入 680–5200 Hz 滑轨噪声、11.5 Hz 粘滑调制、"
+                         "900→1520 Hz 轻吱声、轨道共振与启动“卡”声。",
         "door_close.wav": "前 0.34 s 是 32–180 Hz 门体隆隆 + 450–2600 Hz 轨道刮擦 + 88/176 Hz 电机声；"
                           "0.345 s 处 68→32 Hz 冲击、27.5 Hz sub、金属门板非谐和模态、锁舌点击与气流“噗”，"
                           "再走 0.48 s 混凝土混响。",
@@ -1117,12 +1155,12 @@ def write_report(results: Dict[str, Dict[str, object]], elapsed: float) -> None:
                       "4.2–9.8 kHz 极短 sparkle 和 0.17 s 亮混响。",
         "flashlight_click.wav": "两次 1.5–9.2 kHz 极短噪声冲击，分别配 1180/2380/3950 Hz 与 2380/4600 Hz "
                                 "塑料壳体阻尼模态，第二下更轻；用 5 ms 淡入淡出保护端点。",
-        "blink.wav": "43/29 Hz 缓慢低频压力、63/72 Hz 两次轻闷响、28–230 Hz 低通噪声，"
-                     "再叠 1.4–7.8 kHz 快速衰减气流与 550–2400 Hz 极轻湿润声，模拟闭眼时外界高频被闷住。",
-        "scp_step.wav": "核心是 120–3100 Hz 粉红石面摩擦经 20–70 Hz 不规则粘滑颗粒调制，"
-                        "加 430/980/1870 Hz 干涩共振、1500–5400 Hz 硬石刮擦、52 个随机混凝土碎屑脉冲；"
+        "blink.wav": "34/48/69 Hz 三个低频分量形成耳膜压力，26 Hz sub 与 61/93 Hz、70/104 Hz 两次轻闷响；"
+                     "再叠 900–6200 Hz 快速衰减气流和 420–1500 Hz 极轻湿润声，最后 5.2 kHz 低通模拟眼睑后的闷感。",
+        "scp_step.wav": "核心是 110–2300 Hz 粉红石面摩擦经 20–70 Hz 不规则粘滑颗粒调制，"
+                        "加 390/820/1580 Hz 干涩共振、30 个随机混凝土碎屑脉冲、28–260 Hz 石材低频轰鸣；"
                         "0.068 s 处 66→29 Hz 体重冲击、24/36.5 Hz sub、非谐和石体模态与 tanh 低频粗糙化，"
-                        "最后只给 11.5% 的贴地短混响，保持贴身、干燥、没有电影感。",
+                        "并用侧链式的瞬时下压让撞击顶出来；最后只给 11.5% 的贴地短混响，保持贴身、干燥、没有电影感。",
         "heartbeat.wav": "两次 58→38 / 64→43 Hz 的下坠正弦心音，配 92 Hz 胸腔共振和 28–220 Hz 低通噪声，"
                          "第二声更轻更短；0.45 s 后留出舒张期，最后 60 ms wrap crossfade 接回开头。",
         "stinger.wav": "1.8–9.8 kHz 噪声爆发 + 650–5200 Hz 中频爆裂 + 1830/2270/3020 Hz 失真下行簇，"
@@ -1141,7 +1179,7 @@ def write_report(results: Dict[str, Dict[str, object]], elapsed: float) -> None:
     lines.append("## 关于 `scp_step.wav`：为什么它应该是全套最不适的\n")
     lines.append("它没有采用“干净的低频 boom + 混响”的常规打击乐做法，而是把三个令人不适的物理线索叠在一起："
                  "① 石面与水泥的粘滑摩擦，包络被 20–70 Hz 不规则噪声调制，听起来像有重量的一团东西在一顿一顿地蹭；"
-                 "② 52 个随机微碎屑脉冲，没有节奏、没有音高，制造“混凝土被磨出砂”的牙齿感；"
+                 "② 30 个随机微碎屑脉冲，没有节奏、没有音高，制造“混凝土被磨出砂”的牙齿感；"
                  "③ 66→29 Hz 的体重下坠与 24/36.5 Hz sub，配合 tanh 产生的粗糙谐波，让胸腔先感到“有东西落在背后”。"
                  "混响只有 11.5%，所以它不像远处电影音效，而像贴着后颈发生。\n")
     lines.append(f"该文件实测峰值 **{float(scp['peak_dbfs']):.2f} dBFS**、RMS **{float(scp['rms_dbfs']):.2f} dBFS**；"
@@ -1150,7 +1188,7 @@ def write_report(results: Dict[str, Dict[str, object]], elapsed: float) -> None:
     lines.append("## 自评：最不满意的两个\n")
     lines.append("1. **`blink.wav`**：耳膜压迫本质上有一半是“体感”而不是耳机能还原的听觉事件；"
                  "在笔记本扬声器上它很可能只像一记很轻的低频闷响，闭眼/睁眼的语义要靠画面配合。"
-                 "低频 29–43 Hz 的份额也让它在小喇叭上损失较多。")
+                 "低频 26–93 Hz 的份额也让它在小喇叭上损失较多。")
     lines.append("2. **`flashlight_click.wav`**：60 ms 的长度和单声道让它只能是合格的机械咔嗒，"
                  "缺少真实手电筒那种弹簧回弹的细微二次振动与壳体差异；两次点击的模态还是偏“合成器”。"
                  "如果后续允许更长的 tail，我会加一个 15–25 ms 的金属弹簧余振。\n")

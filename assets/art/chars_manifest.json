@@ -1,0 +1,146 @@
+{
+  "player_down_0.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "down",
+    "帧序": 0
+  },
+  "player_down_1.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "down",
+    "帧序": 1
+  },
+  "player_down_2.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "down",
+    "帧序": 2
+  },
+  "player_down_3.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "down",
+    "帧序": 3
+  },
+  "player_up_0.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "up",
+    "帧序": 0
+  },
+  "player_up_1.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "up",
+    "帧序": 1
+  },
+  "player_up_2.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "up",
+    "帧序": 2
+  },
+  "player_up_3.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "up",
+    "帧序": 3
+  },
+  "player_left_0.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "left",
+    "帧序": 0
+  },
+  "player_left_1.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "left",
+    "帧序": 1
+  },
+  "player_left_2.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "left",
+    "帧序": 2
+  },
+  "player_left_3.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "left",
+    "帧序": 3
+  },
+  "player_right_0.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "right",
+    "帧序": 0
+  },
+  "player_right_1.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "right",
+    "帧序": 1
+  },
+  "player_right_2.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "right",
+    "帧序": 2
+  },
+  "player_right_3.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "right",
+    "帧序": 3
+  },
+  "scp173_idle.png": {
+    "w": 24,
+    "h": 24,
+    "朝向": "front",
+    "帧序": 0
+  },
+  "scp173_step.png": {
+    "w": 24,
+    "h": 24,
+    "朝向": "front",
+    "帧序": 1
+  },
+  "scp173_lunge.png": {
+    "w": 24,
+    "h": 24,
+    "朝向": "front",
+    "帧序": 2
+  },
+  "corpse_dclass.png": {
+    "w": 24,
+    "h": 16,
+    "朝向": "side",
+    "帧序": 0
+  },
+  "mtf_soldier_0.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "down",
+    "帧序": 0
+  },
+  "mtf_soldier_1.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "down",
+    "帧序": 1
+  },
+  "mtf_soldier_2.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "down",
+    "帧序": 2
+  },
+  "mtf_soldier_3.png": {
+    "w": 16,
+    "h": 24,
+    "朝向": "down",
+    "帧序": 3
+  }
+}

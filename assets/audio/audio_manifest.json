@@ -31,7 +31,7 @@
     "duration_sec": 0.9,
     "loop": false,
     "peak_dbfs": -3.0,
-    "rms_dbfs": -17.85,
+    "rms_dbfs": -17.84,
     "use": "气动门开启：起始泄气嘶声 + 末尾金属滑轨"
   },
   "door_close.wav": {
@@ -66,21 +66,21 @@
     "duration_sec": 0.06,
     "loop": false,
     "peak_dbfs": -3.0,
-    "rms_dbfs": -22.41,
+    "rms_dbfs": -22.74,
     "use": "手电开关：塑料壳体机械咔嗒（按下/回弹两下）"
   },
   "blink.wav": {
     "duration_sec": 0.3,
     "loop": false,
     "peak_dbfs": -3.0,
-    "rms_dbfs": -22.5,
+    "rms_dbfs": -17.61,
     "use": "闭眼/睁眼：低频耳膜压力 + 短促高频衰减"
   },
   "scp_step.wav": {
     "duration_sec": 0.18,
     "loop": false,
     "peak_dbfs": -3.0,
-    "rms_dbfs": -11.39,
+    "rms_dbfs": -10.94,
     "use": "SCP-173 混凝土雕像挪步：石面粘滑 + 低频撞击"
   },
   "heartbeat.wav": {
@@ -94,14 +94,14 @@
     "duration_sec": 1.4,
     "loop": false,
     "peak_dbfs": -3.0,
-    "rms_dbfs": -19.8,
+    "rms_dbfs": -19.53,
     "use": "惊吓音：高频噪声爆发 + 下行低频 + 走廊余响"
   },
   "alarm_loop.wav": {
     "duration_sec": 4.0,
     "loop": true,
     "peak_dbfs": -3.0,
-    "rms_dbfs": -14.81,
+    "rms_dbfs": -12.18,
     "use": "远处警报：墙后闷住的双音循环"
   }
 }
