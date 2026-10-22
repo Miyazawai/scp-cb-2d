@@ -3,6 +3,7 @@ extends Node2D
 ## checkpoint (save / document) -> power room -> exit.
 
 const Assets := preload("res://scripts/assets.gd")
+const I18n := preload("res://scripts/i18n.gd")
 
 const TILE := 16
 const MAP_W := 40
@@ -120,6 +121,22 @@ func _apply_args() -> void:
 			" snd=", Assets.snd("amb_loop.wav") != null)
 		get_tree().quit()
 		return
+	if a.has("--shot4"):
+		shot_mode = true
+		st = St.TITLE
+		ui.show_title(true)
+		ui.fade_to(0.0, 0.01)
+		_shot("demo_shot4.png")
+		return
+	if a.has("--shot5"):
+		shot_mode = true
+		st = St.DOC
+		player.freeze = true
+		ui.show_title(false)
+		ui.fade_to(0.0, 0.01)
+		ui.show_doc(I18n.t("doc_title"), I18n.t("doc_body"))
+		_shot("demo_shot5.png")
+		return
 	if a.has("--shot") or a.has("--shot2") or a.has("--shot3"):
 		shot_mode = true
 		st = St.PLAY
@@ -139,13 +156,13 @@ func _apply_args() -> void:
 			player.position = Vector2(22.5 * TILE, 6.5 * TILE)
 			scp.position = Vector2(19.0 * TILE, 5.0 * TILE)
 			scp.hold = true
-			ui.set_objective("FIND A WAY OUT")
+			ui.set_objective("obj_corridor")
 		else:
 			fname = "demo_shot2.png"
 			player.position = Vector2(5.5 * TILE, 5.5 * TILE)
 			scp.position = Vector2(27.0 * TILE, 4.5 * TILE)
 			scp.hold = true
-			ui.set_objective("FIND A WAY OUT")
+			ui.set_objective("obj_cell")
 		_shot(fname)
 	else:
 		ui.set_objective("")
@@ -406,11 +423,11 @@ func _build_props() -> void:
 	_prop("vent.png", Vector2(3.5, 13.5), 1, Color("2c343c"))
 
 func _build_items() -> void:
-	items.append(_make_item(Vector2(28.5, 6.0) * TILE, "card", {"level": 1, "label": "LEVEL 1 KEYCARD"}))
-	items.append(_make_item(Vector2(18.5, 19.0) * TILE, "card", {"level": 2, "label": "LEVEL 2 KEYCARD"}))
+	items.append(_make_item(Vector2(28.5, 6.0) * TILE, "card", {"level": 1, "label_key": "card_lv1"}))
+	items.append(_make_item(Vector2(18.5, 19.0) * TILE, "card", {"level": 2, "label_key": "card_lv2"}))
 	items.append(_make_item(Vector2(21.0, 15.0) * TILE, "doc", {
-		"title": "INCIDENT LOG — 02:14",
-		"body": "Containment failure originated in the 173 chamber on sublevel 3. Blink protocol was suspended during the evacuation drill; the camera feed shows the statue moving between frames.\n\nAll personnel: do not break eye contact. If you must look away, do it with your back to a wall and your light on it.\n\n— Dr. ██████"
+		"title_key": "doc_title",
+		"body_key": "doc_body"
 	}))
 	items.append(_make_item(Vector2(27.0, 18.0) * TILE, "save", {"label": "CHECKPOINT"}))
 
@@ -467,16 +484,16 @@ func _build_triggers() -> void:
 func _fire(kind: String) -> void:
 	match kind:
 		"corridor":
-			ui.say("CONTAINMENT FAILURE — 02:14", 3.2)
-			ui.set_objective("DO NOT LOSE SIGHT OF IT")
+			ui.say(I18n.t("say_corridor"), 3.2)
+			ui.set_objective("obj_corridor")
 			audio.play("alarm_loop.wav", -12.0)
 			burst = 1.8
 		"checkpoint":
-			ui.set_objective("SAVE AT THE TERMINAL  ·  READ THE LOG")
-			ui.say("CHECKPOINT — SECTOR LCZ-2", 2.4)
+			ui.set_objective("obj_checkpoint")
+			ui.say(I18n.t("say_checkpoint"), 2.4)
 			audio.play("door_hiss.wav", -14.0)
 		"power":
-			ui.say("POWER ROOM — GRID UNSTABLE", 2.6)
+			ui.say(I18n.t("say_power"), 2.6)
 			audio.play("door_close.wav", -14.0)
 			burst = 1.2
 
@@ -547,8 +564,8 @@ func _start_game() -> void:
 	player.reset_state()
 	scp.position = scp_spawn
 	st = St.PLAY
-	ui.set_objective("GET OUT OF THE CELL")
-	ui.say("D-CLASS 9341 — CELL 08", 2.8)
+	ui.set_objective("obj_cell")
+	ui.say(I18n.t("say_start"), 2.8)
 	ui.fade_to(0.0, 0.8)
 	audio.play("blink.wav", -14.0)
 
@@ -644,8 +661,8 @@ func _process(delta: float) -> void:
 		var d: float = player.position.distance_to(scp.position)
 		if not met_173 and player.can_see(scp.position):
 			met_173 = true
-			ui.say("SCP-173 — MAINTAIN EYE CONTACT", 3.4)
-			ui.set_objective("KEEP IT IN YOUR LIGHT")
+			ui.say(I18n.t("say_173"), 3.4)
+			ui.set_objective("obj_corridor")
 			audio.play("stinger.wav", -12.0)
 		if not player.can_see(scp.position):
 			danger = clampf(1.0 - d / 200.0, 0.0, 1.0)
@@ -667,7 +684,7 @@ func _update_prompt() -> void:
 		var dist: float = player.position.distance_to(d.center)
 		if dist < best and dist < 40.0:
 			best = dist
-			var txt := "E  OPEN DOOR" if card_level >= d.level else "LOCKED — LV%d KEYCARD" % d.level
+			var txt := I18n.t("prompt_open") if card_level >= d.level else I18n.t("prompt_locked") % d.level
 			prompt = {"kind": "door", "ref": d, "text": txt}
 	for it in items:
 		if it.taken:
@@ -677,9 +694,9 @@ func _update_prompt() -> void:
 			best = dist
 			var txt := ""
 			match it.kind:
-				"card": txt = "E  TAKE %s" % it.data.label
-				"doc": txt = "E  READ"
-				"save": txt = "E  SAVE"
+				"card": txt = I18n.t("prompt_take") % I18n.t(it.data.label_key)
+				"doc": txt = I18n.t("prompt_read")
+				"save": txt = I18n.t("prompt_save")
 			prompt = {"kind": it.kind, "ref": it, "text": txt}
 	if prompt.is_empty():
 		ui.set_prompt("")
@@ -696,23 +713,23 @@ func _interact() -> void:
 				_open_door(d)
 			else:
 				audio.play("keycard_deny.wav", -3.0)
-				ui.set_prompt("LOCKED — LV%d KEYCARD" % d.level)
+				ui.set_prompt(I18n.t("prompt_locked") % d.level)
 		"card":
 			var it = prompt.ref
 			it.taken = true
 			it.node.queue_free()
 			card_level = maxi(card_level, int(it.data.level))
 			audio.play("pickup.wav", -2.0)
-			ui.set_objective("OPEN THE CHECKPOINT DOOR" if card_level == 1 else "GET TO THE EXIT")
+			ui.set_objective("obj_door1" if card_level == 1 else "obj_exit")
 		"doc":
 			st = St.DOC
 			player.freeze = true
-			ui.show_doc(prompt.ref.data.title, prompt.ref.data.body)
+			ui.show_doc(I18n.t(prompt.ref.data.title_key), I18n.t(prompt.ref.data.body_key))
 			audio.play("pickup.wav", -8.0)
 		"save":
 			save_pos = player.position
 			audio.play("keycard_beep.wav", -3.0)
-			ui.set_objective("PROGRESS SAVED")
+			ui.set_objective("obj_saved")
 
 func _open_door(d) -> void:
 	d.open = true
@@ -741,6 +758,10 @@ func _input(event: InputEvent) -> void:
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
 	var k: int = event.physical_keycode
+	if k == KEY_L:
+		I18n.toggle()
+		ui.refresh()
+		return
 	match st:
 		St.TITLE:
 			if k == KEY_ENTER or k == KEY_KP_ENTER or k == KEY_SPACE:

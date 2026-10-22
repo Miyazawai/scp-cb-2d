@@ -20,3 +20,13 @@
 ## 同人作品惯例
 
 本项目以免费同人形式发布，不进行商业销售。若未来需要商业化，必须先移除全部 SCP 相关的名称与标志（参见 `docs/adr/0003-no-combat.md` 的背景部分）。
+
+## 第三方字体
+
+- **Ark Pixel Font**（`assets/fonts/ArkPixel12.ttf`）— TakWolf，SIL OFL 1.1，https://github.com/TakWolf/ark-pixel-font
+- **Silkscreen**（`assets/fonts/Silkscreen-*.ttf`）— Jason Kottke，SIL OFL 1.1，Google Fonts
+
+## 音频
+
+`assets/audio/` 中的全部 WAV 由 `gen_audio.py` 用 numpy 合成，未使用任何采样素材。
+

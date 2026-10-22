@@ -1,0 +1,89 @@
+extends Node
+## Minimal two-language table. Chinese is the default; L toggles.
+
+const ZH := {
+	"ui_blink": "眨眼",
+	"ui_light": "手电",
+	"ui_card": "门禁卡 Lv%d",
+	"ui_card_none": "门禁卡 —",
+	"title_name": "SCP:CB 2D",
+	"title_sub": "垂直切片 · SITE-19 轻收容区",
+	"title_press": "按 ENTER 开始",
+	"title_hint": "WASD 移动　鼠标 瞄准　空格 眨眼　E 交互　L 切换语言",
+	"pause_title": "已暂停",
+	"pause_hint": "ESC 继续　　Q 退出　　L 切换语言",
+	"doc_close": "E / ESC 关闭",
+	"dead_title": "你死了",
+	"dead_hint": "正在返回上一个存档点",
+	"end_title": "演示结束",
+	"end_sub": "SITE-19 · 轻收容区 · 地下二层",
+	"end_hint": "ESC 退出　　R 重新开始",
+	"prompt_open": "E　开门",
+	"prompt_locked": "需要 Lv%d 门禁卡",
+	"prompt_take": "E　拾取 %s",
+	"prompt_read": "E　阅读",
+	"prompt_save": "E　存档",
+	"obj_cell": "离开牢房",
+	"obj_corridor": "别让它离开你的光",
+	"obj_checkpoint": "在终端存档 · 阅读日志",
+	"obj_door1": "打开检查点的大门",
+	"obj_exit": "前往出口",
+	"obj_saved": "进度已保存",
+	"say_start": "D 级人员 9341 — 08 号牢房",
+	"say_corridor": "收容失效 — 02:14",
+	"say_checkpoint": "检查点 — LCZ-2 区",
+	"say_power": "配电间 — 电网不稳定",
+	"say_173": "SCP-173 — 保持注视",
+	"card_lv1": "1 级门禁卡",
+	"card_lv2": "2 级门禁卡",
+	"doc_title": "事件日志 — 02:14",
+	"doc_body": "收容失效源自三层 173 收容室。疏散演练期间眨眼规程被中止，监控画面显示雕像在帧与帧之间移动。\n\n全体人员：不得中断注视。若必须移开视线，请背靠墙壁，并把光源照在它身上。\n\n—— ██████ 博士",
+}
+
+const EN := {
+	"ui_blink": "BLINK",
+	"ui_light": "LIGHT",
+	"ui_card": "KEYCARD LV%d",
+	"ui_card_none": "KEYCARD —",
+	"title_name": "SCP:CB 2D",
+	"title_sub": "VERTICAL SLICE · SITE-19 LIGHT CONTAINMENT",
+	"title_press": "PRESS ENTER",
+	"title_hint": "WASD MOVE   MOUSE AIM   SPACE BLINK   E INTERACT   L LANGUAGE",
+	"pause_title": "PAUSED",
+	"pause_hint": "ESC RESUME    Q QUIT    L LANGUAGE",
+	"doc_close": "E / ESC CLOSE",
+	"dead_title": "YOU DIED",
+	"dead_hint": "RESPAWNING AT LAST CHECKPOINT",
+	"end_title": "DEMO END",
+	"end_sub": "SITE-19  //  LIGHT CONTAINMENT  //  SUBLEVEL 2",
+	"end_hint": "ESC QUIT        R PLAY AGAIN",
+	"prompt_open": "E  OPEN DOOR",
+	"prompt_locked": "LOCKED — LV%d KEYCARD",
+	"prompt_take": "E  TAKE %s",
+	"prompt_read": "E  READ",
+	"prompt_save": "E  SAVE",
+	"obj_cell": "GET OUT OF THE CELL",
+	"obj_corridor": "KEEP IT IN YOUR LIGHT",
+	"obj_checkpoint": "SAVE AT THE TERMINAL  ·  READ THE LOG",
+	"obj_door1": "OPEN THE CHECKPOINT DOOR",
+	"obj_exit": "GET TO THE EXIT",
+	"obj_saved": "PROGRESS SAVED",
+	"say_start": "D-CLASS 9341 — CELL 08",
+	"say_corridor": "CONTAINMENT FAILURE — 02:14",
+	"say_checkpoint": "CHECKPOINT — SECTOR LCZ-2",
+	"say_power": "POWER ROOM — GRID UNSTABLE",
+	"say_173": "SCP-173 — MAINTAIN EYE CONTACT",
+	"card_lv1": "LEVEL 1 KEYCARD",
+	"card_lv2": "LEVEL 2 KEYCARD",
+	"doc_title": "INCIDENT LOG — 02:14",
+	"doc_body": "Containment failure originated in the 173 chamber on sublevel 3. Blink protocol was suspended during the evacuation drill; the camera feed shows the statue moving between frames.\n\nAll personnel: do not break eye contact. If you must look away, do it with your back to a wall and your light on it.\n\n— Dr. ██████",
+}
+
+static var lang := "zh"
+
+static func t(key: String) -> String:
+	var d: Dictionary = ZH if lang == "zh" else EN
+	return String(d.get(key, key))
+
+static func toggle() -> void:
+	lang = "en" if lang == "zh" else "zh"

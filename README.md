@@ -2,9 +2,17 @@
 
 把《SCP – Containment Breach》的体验做成**像素俯视 2D** 的免费同人游戏。开源、非商业。
 
+![title](docs/images/title.png)
+
+*中文为默认语言，游戏内按 `L` 切换中英双语。*
+
 ![demo](docs/images/encounter.png)
 
 *手电照住它，它不能动。关灯、眨眼、或者把光挪开——它就换位置了。*
+
+![doc](docs/images/doc.png)
+
+*散落的日志是路线提示，也是这个世界唯一的解释。*
 
 ![layout](docs/images/demo.png)
 
