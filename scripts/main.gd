@@ -40,6 +40,7 @@ var docs_found: Dictionary = {}
 var has_nvg := false
 var breakers: Dictionary = {}
 var powered := false
+var ambient := 1.0
 var deny_t := 0.0
 var _sc_fail := 0
 var spawn_pos := Vector2.ZERO
@@ -493,6 +494,16 @@ func _scenarios() -> Dictionary:
 			{ "do": "wait", "secs": 2.8 },
 			{ "do": "assert_state", "value": "END", "label": "act II ends at the lift" },
 		],
+		"act2_lockdown": [
+			{ "do": "teleport", "to": [24.5, 8.2] },
+			{ "do": "set_card", "value": "2" },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
+			{ "do": "assert_doors_closed", "label": "precondition: door is shut" },
+			{ "do": "apply_state", "name": "lockdown" },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "assert_ambient_below", "value": "0.5", "label": "lockdown drops the ambient light" },
+		],
 		"fixture_spawn": [
 			{ "do": "near", "to": [2.5, 2.5], "tol": 24.0, "label": "booted into the level passed by --level" },
 		],
@@ -581,6 +592,17 @@ func _scenario_run(name: String) -> void:
 				card_level = int(step["value"])
 			"use_914":
 				_use_914(int(step["value"]))
+			"apply_state":
+				_apply_state(String(step["name"]))
+			"assert_doors_closed":
+				var all_closed := true
+				for dr in doors:
+					if dr.open:
+						all_closed = false
+				_sc_ok(all_closed, String(step.get("label", "doors closed")), "doors still open")
+			"assert_ambient_below":
+				_sc_ok(ambient < float(step["value"]), String(step.get("label", "ambient")),
+					"ambient=%.2f" % ambient)
 			"assert_powered":
 				_sc_ok(powered, String(step.get("label", "powered")), "powered=%s" % str(powered))
 			"assert_contaminated":
@@ -1093,6 +1115,24 @@ func _build_triggers() -> void:
 			"actions": t.get("actions", []),
 			"fired": false
 		})
+func _apply_state(name: String) -> void:
+	var defs: Dictionary = level.get("states", {})
+	if not defs.has(name):
+		return
+	var st_def: Dictionary = defs[name]
+	if st_def.has("lights"):
+		ambient = float(st_def["lights"])
+	if String(st_def.get("doors", "")) == "lock":
+		for d in doors:
+			_set_door(d, false)
+			d.level = 3
+	if bool(st_def.get("wake_scps", false)):
+		_activate_all()
+	if st_def.has("say"):
+		ui.say(I18n.t(String(st_def["say"])), 3.0)
+	if st_def.has("objective"):
+		ui.set_objective(String(st_def["objective"]))
+
 func _deny(msg: String) -> void:
 	if deny_t > 0.0:
 		return
@@ -1144,6 +1184,8 @@ func _run_actions(actions: Array) -> void:
 				await get_tree().create_timer(float(act.get("secs", 0.5))).timeout
 			"blackout":
 				burst = float(act.get("secs", 1.0))
+			"state":
+				_apply_state(String(act.get("name", "")))
 			"goto_level":
 				carry_card = card_level
 				next_level = String(act.get("file", ""))
@@ -1424,7 +1466,8 @@ func _process(delta: float) -> void:
 			var k := 0.25 + 0.75 * float(randi() % 2)
 			cm_node.color = Color(0.16, 0.175, 0.215) * k
 		else:
-			cm_node.color = Color(0.34, 0.36, 0.44) if powered else Color(0.16, 0.175, 0.215)
+			var base := Color(0.34, 0.36, 0.44) if powered else Color(0.16, 0.175, 0.215)
+			cm_node.color = Color(base.r * ambient, base.g * ambient, base.b * ambient)
 
 	# only the lights around the player are powered: distant rooms stay black,
 	# which keeps the wing's layout a mystery until you walk into it

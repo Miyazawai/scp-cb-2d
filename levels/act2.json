@@ -756,5 +756,14 @@
         14.0
       ]
     }
-  ]
+  ],
+  "states": {
+    "lockdown": {
+      "lights": 0.35,
+      "doors": "lock",
+      "wake_scps": true,
+      "say": "say_lockdown",
+      "objective": "obj_return"
+    }
+  }
 }

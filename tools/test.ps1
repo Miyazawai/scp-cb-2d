@@ -20,6 +20,7 @@ $cases = @(
     @{ n = "act2 scp-914 refine";        a = @("--level=res://levels/act2.json", "--scenario=act2_914"); code = 0; has = "PASS failures=0" },
     @{ n = "act2 breakers + power";      a = @("--level=res://levels/act2.json", "--scenario=act2_breakers"); code = 0; has = "PASS failures=0" },
     @{ n = "act2 exit at the lift";      a = @("--level=res://levels/act2.json", "--scenario=act2_exit"); code = 0; has = "PASS failures=0" },
+    @{ n = "act2 lockdown state";      a = @("--level=res://levels/act2.json", "--scenario=act2_lockdown"); code = 0; has = "PASS failures=0" },
     @{ n = "act1 walkthrough";           a = @("--scenario=act1_walkthrough");                 code = 0; has = "PASS failures=0" },
     @{ n = "act1 documents";             a = @("--scenario=act1_documents");                   code = 0; has = "PASS failures=0" },
     @{ n = "act1 terminals";             a = @("--scenario=act1_terminals");                   code = 0; has = "PASS failures=0" },
