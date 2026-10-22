@@ -17,6 +17,7 @@ const MAX_STANDOFF := 6.0        # it never lands right on top of you; it kills 
 
 var player: CharacterBody2D = null
 var hold := false                # debug/screenshot: keep it still
+var active := false              # dormant until the containment-failure beat
 var _timer := 0.0
 var _shown := false
 var _flash := 0.0
@@ -61,7 +62,7 @@ func _process(delta: float) -> void:
 	if seen:
 		# reset the wind-up so the first step after you look away is never free
 		_timer = 0.0
-	elif not hold:
+	elif not hold and active:
 		_timer += delta
 		while _timer >= STEP_INTERVAL:
 			_timer -= STEP_INTERVAL
@@ -74,6 +75,9 @@ func _step() -> void:
 	var dist := to_player.length()
 	if dist <= KILL_DIST:
 		player.die()
+		return
+	# it stalks you, it does not teleport across the wing
+	if dist > 340.0:
 		return
 
 	var dir := to_player / dist

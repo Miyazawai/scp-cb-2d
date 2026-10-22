@@ -121,6 +121,9 @@ func _apply_args() -> void:
 			" snd=", Assets.snd("amb_loop.wav") != null)
 		get_tree().quit()
 		return
+	if a.has("--start"):
+		_shot_after_start()
+		return
 	if a.has("--shot4"):
 		shot_mode = true
 		st = St.TITLE
@@ -166,6 +169,16 @@ func _apply_args() -> void:
 		_shot(fname)
 	else:
 		ui.set_objective("")
+
+func _shot_after_start() -> void:
+	await get_tree().create_timer(0.6).timeout
+	_start_game()
+	await get_tree().create_timer(2.4).timeout
+	await RenderingServer.frame_post_draw
+	var img := get_viewport().get_texture().get_image()
+	img.save_png(ProjectSettings.globalize_path("res://demo_shot6.png"))
+	print("SHOT SAVED: demo_shot6.png")
+	get_tree().quit()
 
 func _shot(fname: String) -> void:
 	await get_tree().create_timer(1.4).timeout
@@ -484,6 +497,7 @@ func _build_triggers() -> void:
 func _fire(kind: String) -> void:
 	match kind:
 		"corridor":
+			scp.active = true
 			ui.say(I18n.t("say_corridor"), 3.2)
 			ui.set_objective("obj_corridor")
 			audio.play("alarm_loop.wav", -12.0)
@@ -556,6 +570,11 @@ func _build_post() -> void:
 # ---------------------------------------------------------------- flow
 
 func _start_game() -> void:
+	if st != St.TITLE:
+		return
+	# flip the state first: _process re-shows the title every frame while we are
+	# still in TITLE, which would undo the hide below during the fade-out.
+	st = St.PLAY
 	ui.show_title(false)
 	ui.fade_to(1.0, 0.4)
 	await get_tree().create_timer(0.45).timeout
@@ -563,7 +582,6 @@ func _start_game() -> void:
 	player.freeze = false
 	player.reset_state()
 	scp.position = scp_spawn
-	st = St.PLAY
 	ui.set_objective("obj_cell")
 	ui.say(I18n.t("say_start"), 2.8)
 	ui.fade_to(0.0, 0.8)
