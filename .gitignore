@@ -15,3 +15,6 @@ Thumbs.db
 # subagent scratch dirs
 assets/art/.*.tmpdir/
 *.tmp
+
+# machine-specific launcher shortcuts
+*.lnk
