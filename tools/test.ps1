@@ -4,17 +4,19 @@ $ErrorActionPreference = "Continue"
 $GODOT = "D:\software\Godot\4.7.2\Godot_v4.7.2-stable_win64_console.exe"
 if (-not (Test-Path $GODOT)) { "Godot not found: $GODOT"; exit 2 }
 
-$base = @("--path", ".", "--headless", "--quit-after", "2400", "--")
+$base = @("--path", ".", "--headless", "--quit-after", "4000", "--")
 
 $cases = @(
-    @{ n = "act1 validates clean";       a = @("--validate");                                code = 0; has = "problems=0" },
-    @{ n = "good fixture validates";     a = @("--validate=res://levels/test/good.json");     code = 0; has = "problems=0" },
+    @{ n = "act1 validates clean";       a = @("--validate");                                 code = 0; has = "problems=0" },
+    @{ n = "good fixture validates";     a = @("--validate=res://levels/test/good.json");      code = 0; has = "problems=0" },
     @{ n = "off-floor decal rejected";   a = @("--validate=res://levels/test/bad_decal.json"); code = 1; has = "decal" },
     @{ n = "duplicate doc id rejected";  a = @("--validate=res://levels/test/dup_doc.json");   code = 1; has = "duplicate" },
     @{ n = "scenario list";              a = @("--scenario=list");                             code = 0; has = "act1_walkthrough" },
     @{ n = "act1 walkthrough";           a = @("--scenario=act1_walkthrough");                 code = 0; has = "PASS failures=0" },
-    @{ n = "act1 documents";             a = @("--scenario=act1_docs");                        code = 0; has = "PASS failures=0" },
-    @{ n = "act1 death + respawn";       a = @("--scenario=act1_death_respawn");               code = 0; has = "PASS failures=0" },
+    @{ n = "act1 documents";             a = @("--scenario=act1_documents");                   code = 0; has = "PASS failures=0" },
+    @{ n = "act1 terminals";             a = @("--scenario=act1_terminals");                   code = 0; has = "PASS failures=0" },
+    @{ n = "act1 vending machine";       a = @("--scenario=act1_vending");                     code = 0; has = "PASS failures=0" },
+    @{ n = "act1 elevator";              a = @("--scenario=act1_elevator");                    code = 0; has = "PASS failures=0" },
     @{ n = "negative control goes red";  a = @("--scenario=negative_control");                 code = 1; has = "FAIL failures=1" }
 )
 

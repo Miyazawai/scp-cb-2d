@@ -1,91 +1,840 @@
 {
-  "_comment": "Act I level data. Coordinates are in tiles; floats are tile-centres. 'rect' = [x, y, w, h].",
-  "size": [40, 32],
-  "spawn": [5.5, 5.5],
-  "exit": { "rect": [9, 25, 3, 3], "mode": "gate_a" },
-
+  "_comment": "Act I — 苏醒. rect = [x, y, w, h] in tiles; at = tile-centre floats.",
+  "size": [
+    40,
+    32
+  ],
+  "spawn": [
+    5.5,
+    5.5
+  ],
+  "exit": {
+    "rect": [
+      9,
+      25,
+      3,
+      3
+    ],
+    "mode": "gate_a"
+  },
   "areas": [
-    { "id": "cell",        "rect": [2, 2, 8, 7],   "kind": "room" },
-    { "id": "cell_link",   "rect": [10, 5, 2, 2],  "kind": "corridor" },
-    { "id": "corridor",    "rect": [12, 3, 19, 6], "kind": "room" },
-    { "id": "check_link",  "rect": [24, 9, 2, 4],  "kind": "corridor" },
-    { "id": "checkpoint",  "rect": [16, 13, 15, 8], "kind": "room" },
-    { "id": "power_link",  "rect": [10, 16, 6, 2], "kind": "corridor" },
-    { "id": "power",       "rect": [3, 13, 7, 8],  "kind": "room" },
-    { "id": "exit_link",   "rect": [6, 21, 2, 3],  "kind": "corridor" },
-    { "id": "exit_hall",   "rect": [3, 24, 10, 5], "kind": "room" }
+    {
+      "id": "cell",
+      "rect": [
+        2,
+        2,
+        8,
+        7
+      ],
+      "kind": "room"
+    },
+    {
+      "id": "cell_link",
+      "rect": [
+        10,
+        5,
+        2,
+        2
+      ],
+      "kind": "corridor"
+    },
+    {
+      "id": "corridor",
+      "rect": [
+        12,
+        3,
+        19,
+        6
+      ],
+      "kind": "room"
+    },
+    {
+      "id": "dress_link",
+      "rect": [
+        13,
+        9,
+        2,
+        1
+      ],
+      "kind": "corridor"
+    },
+    {
+      "id": "dressing",
+      "rect": [
+        12,
+        10,
+        4,
+        5
+      ],
+      "kind": "room"
+    },
+    {
+      "id": "tea_link",
+      "rect": [
+        20,
+        9,
+        2,
+        1
+      ],
+      "kind": "corridor"
+    },
+    {
+      "id": "tea",
+      "rect": [
+        19,
+        10,
+        5,
+        3
+      ],
+      "kind": "room"
+    },
+    {
+      "id": "check_link",
+      "rect": [
+        24,
+        9,
+        2,
+        4
+      ],
+      "kind": "corridor"
+    },
+    {
+      "id": "checkpoint",
+      "rect": [
+        16,
+        13,
+        15,
+        8
+      ],
+      "kind": "room"
+    },
+    {
+      "id": "power_link",
+      "rect": [
+        10,
+        16,
+        6,
+        2
+      ],
+      "kind": "corridor"
+    },
+    {
+      "id": "power",
+      "rect": [
+        3,
+        13,
+        7,
+        8
+      ],
+      "kind": "room"
+    },
+    {
+      "id": "exit_link",
+      "rect": [
+        6,
+        21,
+        2,
+        3
+      ],
+      "kind": "corridor"
+    },
+    {
+      "id": "exit_hall",
+      "rect": [
+        3,
+        24,
+        10,
+        5
+      ],
+      "kind": "room"
+    }
   ],
-
   "doors": [
-    { "id": "d_check", "cells": [[24, 9], [25, 9]], "level": 1 },
-    { "id": "d_power", "cells": [[15, 16], [15, 17]], "level": 2 }
+    {
+      "id": "d_check",
+      "cells": [
+        [
+          24,
+          9
+        ],
+        [
+          25,
+          9
+        ]
+      ],
+      "level": 1
+    },
+    {
+      "id": "d_power",
+      "cells": [
+        [
+          15,
+          16
+        ],
+        [
+          15,
+          17
+        ]
+      ],
+      "level": 2
+    }
   ],
-
   "lights": [
-    { "at": [5.5, 4.5],   "energy": 1.05 },
-    { "at": [10.5, 5.5],  "energy": 0.75 },
-    { "at": [14.5, 5.5],  "energy": 0.95 },
-    { "at": [20.5, 4.5],  "energy": 0.85 },
-    { "at": [26.5, 5.5],  "energy": 1.00, "flicker": true },
-    { "at": [24.5, 10.5], "energy": 0.70 },
-    { "at": [20.0, 16.0], "energy": 0.95 },
-    { "at": [26.5, 17.5], "energy": 0.85 },
-    { "at": [29.0, 14.0], "energy": 0.60 },
-    { "at": [12.5, 16.5], "energy": 0.70 },
-    { "at": [5.5, 15.5],  "energy": 0.55, "flicker": true },
-    { "at": [7.0, 19.0],  "energy": 0.50, "flicker": true },
-    { "at": [6.5, 22.0],  "energy": 0.65 },
-    { "at": [6.0, 26.0],  "energy": 0.90 },
-    { "at": [10.0, 26.5], "energy": 0.90 }
+    {
+      "at": [
+        5.5,
+        4.5
+      ],
+      "energy": 1.05
+    },
+    {
+      "at": [
+        10.5,
+        5.5
+      ],
+      "energy": 0.75
+    },
+    {
+      "at": [
+        14.5,
+        5.5
+      ],
+      "energy": 0.95
+    },
+    {
+      "at": [
+        26.5,
+        5.5
+      ],
+      "energy": 1.0,
+      "flicker": true
+    },
+    {
+      "at": [
+        13.5,
+        11.5
+      ],
+      "energy": 0.6
+    },
+    {
+      "at": [
+        21.0,
+        11.0
+      ],
+      "energy": 0.7
+    },
+    {
+      "at": [
+        24.5,
+        10.5
+      ],
+      "energy": 0.7
+    },
+    {
+      "at": [
+        20.0,
+        16.0
+      ],
+      "energy": 0.95
+    },
+    {
+      "at": [
+        26.5,
+        17.5
+      ],
+      "energy": 0.85
+    },
+    {
+      "at": [
+        29.0,
+        14.0
+      ],
+      "energy": 0.6
+    },
+    {
+      "at": [
+        12.5,
+        16.5
+      ],
+      "energy": 0.7
+    },
+    {
+      "at": [
+        5.5,
+        15.5
+      ],
+      "energy": 0.55,
+      "flicker": true
+    },
+    {
+      "at": [
+        7.0,
+        19.0
+      ],
+      "energy": 0.5,
+      "flicker": true
+    },
+    {
+      "at": [
+        6.5,
+        22.0
+      ],
+      "energy": 0.65
+    },
+    {
+      "at": [
+        6.0,
+        26.0
+      ],
+      "energy": 0.9
+    },
+    {
+      "at": [
+        10.0,
+        26.5
+      ],
+      "energy": 0.9
+    }
   ],
-
   "props": [
-    { "art": "locker.png",       "at": [3.5, 7.5] },
-    { "art": "chair.png",        "at": [7.5, 3.5] },
-    { "art": "vent.png",         "at": [15.5, 3.5] },
-    { "art": "blood_splat.png",  "at": [21.5, 6.0], "z": 0 },
-    { "art": "corpse.png",       "at": [28.5, 6.0] },
-    { "art": "crate.png",        "at": [13.0, 7.5] },
-    { "art": "crate.png",        "at": [29.0, 3.5] },
-    { "art": "hazard_sign.png",  "at": [12.5, 3.5], "z": 2 },
-    { "art": "desk.png",         "at": [21.0, 15.0] },
-    { "art": "terminal.png",     "at": [21.0, 15.0], "z": 2 },
-    { "art": "desk.png",         "at": [27.0, 18.0] },
-    { "art": "save_terminal.png","at": [27.0, 18.0], "z": 2 },
-    { "art": "chair.png",        "at": [22.0, 16.0] },
-    { "art": "corpse.png",       "at": [18.5, 19.0] },
-    { "art": "bodybag.png",      "at": [20.0, 19.5] },
-    { "art": "locker.png",       "at": [29.5, 19.5] },
-    { "art": "locker.png",       "at": [29.5, 18.5] },
-    { "art": "barrel.png",       "at": [4.5, 18.5] },
-    { "art": "barrel.png",       "at": [5.5, 18.5] },
-    { "art": "crate.png",        "at": [8.0, 19.0] },
-    { "art": "bodybag.png",      "at": [4.0, 19.0] },
-    { "art": "blood_splat.png",  "at": [7.0, 17.0], "z": 0 },
-    { "art": "vent.png",         "at": [3.5, 13.5] }
+    {
+      "art": "locker.png",
+      "at": [
+        3.5,
+        7.5
+      ]
+    },
+    {
+      "art": "chair.png",
+      "at": [
+        7.5,
+        3.5
+      ]
+    },
+    {
+      "art": "vent.png",
+      "at": [
+        15.5,
+        3.5
+      ]
+    },
+    {
+      "art": "crate.png",
+      "at": [
+        13.0,
+        7.5
+      ]
+    },
+    {
+      "art": "crate.png",
+      "at": [
+        29.0,
+        3.5
+      ]
+    },
+    {
+      "art": "hazard_sign.png",
+      "at": [
+        12.5,
+        3.5
+      ],
+      "z": 2
+    },
+    {
+      "art": "locker.png",
+      "at": [
+        12.5,
+        10.5
+      ]
+    },
+    {
+      "art": "locker.png",
+      "at": [
+        12.5,
+        11.5
+      ]
+    },
+    {
+      "art": "corpse.png",
+      "at": [
+        15.0,
+        12.5
+      ]
+    },
+    {
+      "art": "desk.png",
+      "at": [
+        21.0,
+        12.0
+      ]
+    },
+    {
+      "art": "terminal.png",
+      "at": [
+        21.0,
+        11.0
+      ],
+      "z": 2
+    },
+    {
+      "art": "chair.png",
+      "at": [
+        22.0,
+        12.0
+      ]
+    },
+    {
+      "art": "desk.png",
+      "at": [
+        21.0,
+        15.0
+      ]
+    },
+    {
+      "art": "terminal.png",
+      "at": [
+        21.0,
+        15.0
+      ],
+      "z": 2
+    },
+    {
+      "art": "desk.png",
+      "at": [
+        27.0,
+        18.0
+      ]
+    },
+    {
+      "art": "save_terminal.png",
+      "at": [
+        27.0,
+        18.0
+      ],
+      "z": 2
+    },
+    {
+      "art": "chair.png",
+      "at": [
+        22.0,
+        16.0
+      ]
+    },
+    {
+      "art": "corpse.png",
+      "at": [
+        18.5,
+        19.0
+      ]
+    },
+    {
+      "art": "bodybag.png",
+      "at": [
+        20.0,
+        19.5
+      ]
+    },
+    {
+      "art": "locker.png",
+      "at": [
+        29.5,
+        19.5
+      ]
+    },
+    {
+      "art": "locker.png",
+      "at": [
+        29.5,
+        18.5
+      ]
+    },
+    {
+      "art": "barrel.png",
+      "at": [
+        4.5,
+        18.5
+      ]
+    },
+    {
+      "art": "barrel.png",
+      "at": [
+        5.5,
+        18.5
+      ]
+    },
+    {
+      "art": "crate.png",
+      "at": [
+        8.0,
+        19.0
+      ]
+    },
+    {
+      "art": "bodybag.png",
+      "at": [
+        4.0,
+        19.0
+      ]
+    },
+    {
+      "art": "vent.png",
+      "at": [
+        3.5,
+        13.5
+      ]
+    },
+    {
+      "art": "save_terminal.png",
+      "at": [
+        13.0,
+        11.0
+      ],
+      "z": 2
+    }
   ],
-
+  "decals": [
+    {
+      "art": "blood_splat.png",
+      "at": [
+        19.5,
+        19.0
+      ],
+      "z": 0,
+      "tint": [
+        0.42,
+        0.3,
+        0.3,
+        0.92
+      ]
+    },
+    {
+      "art": "floor_crack.png",
+      "at": [
+        17.0,
+        5.0
+      ],
+      "z": 0
+    },
+    {
+      "art": "blood_splat.png",
+      "at": [
+        25.5,
+        12.0
+      ],
+      "z": 0,
+      "tint": [
+        0.22,
+        0.24,
+        0.28,
+        0.9
+      ]
+    },
+    {
+      "art": "blood_splat.png",
+      "at": [
+        24.0,
+        11.0
+      ],
+      "z": 0,
+      "tint": [
+        0.18,
+        0.19,
+        0.22,
+        0.85
+      ]
+    },
+    {
+      "art": "blood_splat.png",
+      "at": [
+        20.5,
+        6.5
+      ],
+      "z": 0,
+      "tint": [
+        0.42,
+        0.3,
+        0.3,
+        0.92
+      ]
+    },
+    {
+      "art": "blood_splat.png",
+      "at": [
+        14.5,
+        13.5
+      ],
+      "z": 0,
+      "tint": [
+        0.42,
+        0.3,
+        0.3,
+        0.92
+      ]
+    },
+    {
+      "art": "blood_splat.png",
+      "at": [
+        7.0,
+        17.0
+      ],
+      "z": 0,
+      "tint": [
+        0.42,
+        0.3,
+        0.3,
+        0.92
+      ]
+    }
+  ],
   "items": [
-    { "kind": "card",    "at": [28.5, 6.0],  "level": 1, "label_key": "card_lv1" },
-    { "kind": "card",    "at": [18.5, 19.0], "level": 2, "label_key": "card_lv2" },
-    { "kind": "save",    "at": [27.0, 18.0] },
-    { "kind": "battery", "at": [7.5, 3.5] },
-    { "kind": "battery", "at": [8.5, 19.0] }
+    {
+      "kind": "card",
+      "at": [
+        15.0,
+        12.5
+      ],
+      "level": 1,
+      "label_key": "card_lv1"
+    },
+    {
+      "kind": "card",
+      "at": [
+        18.5,
+        19.0
+      ],
+      "level": 2,
+      "label_key": "card_lv2"
+    },
+    {
+      "kind": "save",
+      "at": [
+        13.0,
+        11.0
+      ]
+    },
+    {
+      "kind": "save",
+      "at": [
+        27.0,
+        18.0
+      ]
+    },
+    {
+      "kind": "vending",
+      "at": [
+        21.0,
+        11.0
+      ]
+    },
+    {
+      "kind": "battery",
+      "at": [
+        7.5,
+        3.5
+      ]
+    },
+    {
+      "kind": "battery",
+      "at": [
+        8.5,
+        19.0
+      ]
+    },
+    {
+      "kind": "battery",
+      "at": [
+        22.0,
+        11.5
+      ]
+    }
   ],
-
   "documents": [
-    { "id": "incident_log_1", "title_key": "doc_title", "body_key": "doc_body", "at": [21.0, 15.0], "critical": true }
+    {
+      "id": "cell_note",
+      "title_key": "doc_cell_title",
+      "body_key": "doc_cell_body",
+      "at": [
+        3.0,
+        3.5
+      ]
+    },
+    {
+      "id": "corridor_note",
+      "title_key": "doc_corr_title",
+      "body_key": "doc_corr_body",
+      "at": [
+        16.5,
+        4.5
+      ]
+    },
+    {
+      "id": "dressing_note",
+      "title_key": "doc_dress_title",
+      "body_key": "doc_dress_body",
+      "at": [
+        13.0,
+        12.5
+      ],
+      "critical": true
+    },
+    {
+      "id": "tea_note",
+      "title_key": "doc_tea_title",
+      "body_key": "doc_tea_body",
+      "at": [
+        22.5,
+        11.0
+      ]
+    },
+    {
+      "id": "incident_log_1",
+      "title_key": "doc_title",
+      "body_key": "doc_body",
+      "at": [
+        21.0,
+        15.0
+      ],
+      "critical": true
+    },
+    {
+      "id": "power_permit",
+      "title_key": "doc_power_title",
+      "body_key": "doc_power_body",
+      "at": [
+        4.5,
+        17.5
+      ],
+      "critical": true
+    }
   ],
-
-  "decals": [],
-
   "triggers": [
-    { "kind": "corridor",   "rect": [12, 2, 3, 8] },
-    { "kind": "checkpoint", "rect": [16, 13, 5, 8] },
-    { "kind": "power",      "rect": [3, 13, 4, 8] }
+    {
+      "kind": "corridor",
+      "rect": [
+        12,
+        2,
+        3,
+        8
+      ],
+      "actions": [
+        {
+          "do": "say",
+          "key": "say_corridor",
+          "secs": 3.2
+        },
+        {
+          "do": "objective",
+          "key": "obj_corridor"
+        },
+        {
+          "do": "sound",
+          "file": "alarm_loop.wav",
+          "db": -12.0
+        },
+        {
+          "do": "activate_scp"
+        }
+      ]
+    },
+    {
+      "kind": "dark",
+      "rect": [
+        17,
+        3,
+        7,
+        6
+      ],
+      "actions": [
+        {
+          "do": "say",
+          "key": "say_dark",
+          "secs": 2.6
+        },
+        {
+          "do": "sound",
+          "file": "scp_step.wav",
+          "db": -8.0
+        }
+      ]
+    },
+    {
+      "kind": "checkpoint",
+      "rect": [
+        16,
+        13,
+        5,
+        8
+      ],
+      "actions": [
+        {
+          "do": "say",
+          "key": "say_checkpoint",
+          "secs": 2.4
+        },
+        {
+          "do": "objective",
+          "key": "obj_checkpoint"
+        }
+      ]
+    },
+    {
+      "kind": "power",
+      "rect": [
+        3,
+        13,
+        4,
+        8
+      ],
+      "actions": [
+        {
+          "do": "say",
+          "key": "say_power",
+          "secs": 2.6
+        },
+        {
+          "do": "blackout",
+          "secs": 1.2
+        }
+      ]
+    },
+    {
+      "kind": "elevator",
+      "rect": [
+        29,
+        14,
+        1,
+        2
+      ],
+      "actions": [
+        {
+          "do": "objective",
+          "key": "obj_elevator"
+        },
+        {
+          "do": "save"
+        },
+        {
+          "do": "fade",
+          "to": 1.0,
+          "secs": 0.8
+        },
+        {
+          "do": "wait",
+          "secs": 1.1
+        },
+        {
+          "do": "end_act"
+        }
+      ]
+    }
   ],
-
   "scps": [
-    { "type": "173", "at": [27.0, 4.5] }
+    {
+      "type": "173",
+      "at": [
+        27.0,
+        4.5
+      ]
+    }
   ]
 }

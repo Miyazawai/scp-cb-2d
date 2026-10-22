@@ -229,7 +229,7 @@ func _validate_level(arg: String) -> void:
 		elif not seen.has(c4):
 			problems.append("document %s is unreachable at %s" % [did, c4])
 
-	var allowed := ["say", "objective", "sound", "fade", "teleport", "activate_scp", "end_act"]
+	var allowed := ["say", "objective", "sound", "fade", "teleport", "activate_scp", "end_act", "wait", "blackout", "save"]
 	for t in lv.get("triggers", []):
 		if not t.has("actions"):
 			continue
@@ -272,21 +272,31 @@ func _scenarios() -> Dictionary:
 			{ "do": "teleport", "to": [13.0, 4.5] },
 			{ "do": "wait", "secs": 0.4 },
 			{ "do": "assert_objective", "value": "obj_corridor", "label": "corridor beat fires" },
+			{ "do": "teleport", "to": [15.0, 12.5] },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
+			{ "do": "assert_card", "value": "1", "label": "level 1 card taken in the locker room" },
+			{ "do": "teleport", "to": [24.5, 8.2] },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
 			{ "do": "teleport", "to": [21.0, 16.2] },
 			{ "do": "wait", "secs": 0.2 },
 			{ "do": "interact" },
-			{ "do": "assert_state", "value": "DOC", "label": "log opens" },
+			{ "do": "assert_state", "value": "DOC", "label": "incident log opens" },
 			{ "do": "close_doc" },
-			{ "do": "assert_docs", "value": "incident_log_1", "label": "log is recorded" },
-			{ "do": "teleport", "to": [27.0, 18.0] },
+			{ "do": "assert_docs", "value": "incident_log_1", "label": "incident log recorded" },
+			{ "do": "teleport", "to": [18.5, 19.0] },
 			{ "do": "wait", "secs": 0.2 },
 			{ "do": "interact" },
+			{ "do": "assert_card", "value": "2", "label": "level 2 card taken" },
+			{ "do": "teleport", "to": [14.2, 16.5] },
 			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
 			{ "do": "teleport", "to": [10.0, 26.0] },
 			{ "do": "wait", "secs": 2.4 },
 			{ "do": "assert_state", "value": "END", "label": "reaches the exit" },
 		],
-		"act1_docs": [
+		"act1_documents": [
 			{ "do": "teleport", "to": [21.0, 16.2] },
 			{ "do": "wait", "secs": 0.2 },
 			{ "do": "interact" },
@@ -294,9 +304,14 @@ func _scenarios() -> Dictionary:
 			{ "do": "assert_docs", "value": "incident_log_1", "label": "picking it up records it" },
 			{ "do": "close_doc" },
 			{ "do": "assert_state", "value": "PLAY", "label": "closing returns control" },
+			{ "do": "teleport", "to": [13.0, 12.5] },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
+			{ "do": "close_doc" },
+			{ "do": "assert_docs", "value": "dressing_note", "label": "second document also recorded" },
 		],
-		"act1_death_respawn": [
-			{ "do": "teleport", "to": [27.0, 18.0] },
+		"act1_terminals": [
+			{ "do": "teleport", "to": [13.0, 11.0] },
 			{ "do": "wait", "secs": 0.2 },
 			{ "do": "interact" },
 			{ "do": "wait", "secs": 0.2 },
@@ -304,7 +319,22 @@ func _scenarios() -> Dictionary:
 			{ "do": "die" },
 			{ "do": "wait", "secs": 3.2 },
 			{ "do": "assert_state", "value": "PLAY", "label": "respawns into play" },
-			{ "do": "near", "to": [27.0, 18.0], "tol": 28.0, "label": "back at the save terminal" },
+			{ "do": "near", "to": [13.0, 11.0], "tol": 28.0, "label": "back at the locker-room terminal" },
+		],
+		"act1_vending": [
+			{ "do": "teleport", "to": [21.0, 11.6] },
+			{ "do": "wait", "secs": 0.2 },
+			{ "do": "interact" },
+			{ "do": "assert_state", "value": "PLAY", "label": "machine does not trap the player" },
+			{ "do": "assert_toast", "label": "machine answers with something" },
+		],
+		"act1_elevator": [
+			{ "do": "teleport", "to": [29.5, 14.5] },
+			{ "do": "wait", "secs": 0.3 },
+			{ "do": "assert_objective", "value": "obj_elevator", "label": "elevator objective set" },
+			{ "do": "wait", "secs": 2.6 },
+			{ "do": "assert_state", "value": "END", "label": "act card shown" },
+			{ "do": "near", "to": [29.5, 14.5], "tol": 40.0, "label": "auto-saved at the elevator" },
 		],
 		"negative_control": [
 			{ "do": "assert_docs", "value": "nope", "label": "this must fail" },
@@ -377,6 +407,11 @@ func _scenario_run(name: String) -> void:
 			"assert_state":
 				_sc_ok(_state_name(st) == String(step["value"]), String(step.get("label", "state")),
 					"got %s want %s" % [_state_name(st), step["value"]])
+			"assert_card":
+				_sc_ok(card_level == int(step["value"]), String(step.get("label", "card")),
+					"got level %d want %s" % [card_level, step["value"]])
+			"assert_toast":
+				_sc_ok(ui.toast.text != "", String(step.get("label", "toast")), "toast was empty")
 			"assert_docs":
 				_sc_ok(docs_found.has(String(step["value"])), String(step.get("label", "docs")),
 					"found=%s" % str(docs_found.keys()))
@@ -406,6 +441,26 @@ func _apply_args() -> void:
 			" char=", Assets.has_art("chars/player_down_0.png"),
 			" snd=", Assets.snd("amb_loop.wav") != null)
 		get_tree().quit()
+		return
+	if a.has("--shot9") or a.has("--shot10"):
+		shot_mode = true
+		st = St.PLAY
+		ui.show_title(false)
+		ui.fade_to(0.0, 0.01)
+		player.use_mouse_aim = false
+		player.facing = Vector2.RIGHT
+		scp.hold = true
+		scp.position = Vector2(27.0, 4.5) * TILE
+		if a.has("--shot9"):
+			player.position = Vector2(15.5, 13.6) * TILE
+			card_level = 0
+			ui.set_objective("obj_cell")
+			_shot("demo_shot9.png")
+		else:
+			player.position = Vector2(21.0, 12.4) * TILE
+			card_level = 1
+			ui.set_objective("obj_checkpoint")
+			_shot("demo_shot10.png")
 		return
 	if a.has("--shot8"):
 		shot_mode = true
@@ -712,7 +767,10 @@ func _build_decals() -> void:
 		var at: Array = dc["at"]
 		var art := String(dc["art"])
 		if Assets.has_art("tiles/" + art):
-			_sprite("tiles/" + art, Vector2(float(at[0]), float(at[1])) * TILE, int(dc.get("z", 0)))
+			var spr := _sprite("tiles/" + art, Vector2(float(at[0]), float(at[1])) * TILE, int(dc.get("z", 0)))
+			if spr and dc.has("tint"):
+				var tint: Array = dc["tint"]
+				spr.modulate = Color(float(tint[0]), float(tint[1]), float(tint[2]), float(tint[3]) if tint.size() > 3 else 1.0)
 
 func _build_items() -> void:
 	for it in level["items"]:
@@ -829,7 +887,15 @@ func _run_actions(actions: Array) -> void:
 				var to: Array = act["to"]
 				if player:
 					player.position = Vector2(float(to[0]), float(to[1])) * TILE
+			"save":
+				save_pos = player.position
+			"wait":
+				await get_tree().create_timer(float(act.get("secs", 0.5))).timeout
+			"blackout":
+				burst = float(act.get("secs", 1.0))
 			"end_act":
+				st = St.END
+				player.freeze = true
 				ui.show_end(true)
 
 func _fire(kind: String) -> void:
@@ -1127,6 +1193,7 @@ func _update_prompt() -> void:
 				"battery": txt = I18n.t("prompt_take_b") % I18n.t("item_battery")
 				"doc": txt = I18n.t("prompt_read")
 				"save": txt = I18n.t("prompt_save")
+				"vending": txt = I18n.t("prompt_vend")
 			prompt = {"kind": it.kind, "ref": it, "text": txt, "pos": it.pos}
 	if prompt.is_empty():
 		ui.set_prompt("")
@@ -1169,6 +1236,20 @@ func _interact() -> void:
 			_inv_add("battery")
 			audio.play("pickup.wav", -2.0)
 			ui.say(I18n.t("say_battery"), 1.8)
+		"vending":
+			var roll := randf()
+			if roll < 0.25:
+				player.stamina = minf(100.0, player.stamina + 35.0)
+				ui.say(I18n.t("vending_stamina"), 2.2)
+			elif roll < 0.5:
+				player.battery = minf(100.0, player.battery + 45.0)
+				ui.say(I18n.t("vending_battery"), 2.2)
+			elif roll < 0.8:
+				ui.say(I18n.t("vending_nothing"), 2.2)
+			else:
+				player.stamina = maxf(0.0, player.stamina - 30.0)
+				ui.say(I18n.t("vending_bad"), 2.2)
+			audio.play("pickup.wav", -4.0)
 		"save":
 			save_pos = player.position
 			audio.play("keycard_beep.wav", -3.0)
