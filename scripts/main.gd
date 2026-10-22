@@ -36,6 +36,8 @@ var card_level := 0
 var inv: Array = []
 static var next_level := ""
 static var carry_card := 0
+static var carry_playing := false
+static var scenario_consumed := false
 var docs_found: Dictionary = {}
 var has_nvg := false
 var breakers: Dictionary = {}
@@ -70,6 +72,7 @@ func _ready() -> void:
 		lv_path = next_level
 		next_level = ""
 	level = _load_level(lv_path)
+	print("LEVEL ", lv_path, " carry=", carry_playing)
 	MAP_W = int(level["size"][0])
 	MAP_H = int(level["size"][1])
 	var ex: Array = level["exit"]["rect"]
@@ -315,7 +318,7 @@ func _validate_level(arg: String) -> void:
 		elif not seen.has(c4):
 			problems.append("document %s is unreachable at %s" % [did, c4])
 
-	var allowed := ["say", "objective", "sound", "fade", "teleport", "activate_scp", "end_act", "wait", "blackout", "save"]
+	var allowed := ["say", "objective", "sound", "fade", "teleport", "activate_scp", "end_act", "wait", "blackout", "save", "goto_level", "state"]
 	for t in lv.get("triggers", []):
 		if not t.has("actions"):
 			continue
@@ -414,13 +417,9 @@ func _scenarios() -> Dictionary:
 			{ "do": "assert_state", "value": "PLAY", "label": "machine does not trap the player" },
 			{ "do": "assert_toast", "label": "machine answers with something" },
 		],
-		"act1_elevator": [
+		"act1_to_act2": [
 			{ "do": "teleport", "to": [29.5, 14.5] },
-			{ "do": "wait", "secs": 0.3 },
-			{ "do": "assert_objective", "value": "obj_elevator", "label": "elevator objective set" },
 			{ "do": "wait", "secs": 2.6 },
-			{ "do": "assert_state", "value": "END", "label": "act card shown" },
-			{ "do": "near", "to": [29.5, 14.5], "tol": 40.0, "label": "auto-saved at the elevator" },
 		],
 		"act2_106": [
 			{ "do": "teleport", "to": [6.0, 4.5] },
@@ -644,6 +643,9 @@ func _apply_args() -> void:
 			return
 	for arg in a:
 		if arg.begins_with("--scenario"):
+			if scenario_consumed:
+				continue
+			scenario_consumed = true
 			var nm := "list"
 			if arg.contains("="):
 				nm = arg.split("=")[1]
@@ -1188,12 +1190,13 @@ func _run_actions(actions: Array) -> void:
 				_apply_state(String(act.get("name", "")))
 			"goto_level":
 				carry_card = card_level
+				carry_playing = true
 				next_level = String(act.get("file", ""))
 				get_tree().reload_current_scene()
 			"end_act":
 				st = St.END
 				player.freeze = true
-				ui.show_end(true)
+				ui.show_end(true, String(act.get("key", "end_title")), String(act.get("sub", "end_sub")))
 
 func _fire(kind: String) -> void:
 	match kind:

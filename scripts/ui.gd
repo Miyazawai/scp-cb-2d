@@ -526,9 +526,12 @@ func set_dead_alpha(a: float) -> void:
 	if bg:
 		bg.color = Color(0.10, 0.01, 0.01, a)
 
-func show_end(on: bool) -> void:
+func show_end(on: bool, title_key: String = "end_title", sub_key: String = "end_sub") -> void:
 	end_layer.visible = on
 	hud.visible = not on
+	if on:
+		e_title.text = I18n.t(title_key)
+		e_sub.text = I18n.t(sub_key)
 
 func fade_to(a: float, secs: float) -> void:
 	var tw := create_tween()

@@ -808,7 +808,7 @@
       "actions": [
         {
           "do": "objective",
-          "key": "obj_elevator"
+          "key": "obj_a2_enter"
         },
         {
           "do": "save"
@@ -820,10 +820,11 @@
         },
         {
           "do": "wait",
-          "secs": 1.1
+          "secs": 1.0
         },
         {
-          "do": "end_act"
+          "do": "goto_level",
+          "file": "res://levels/act2.json"
         }
       ]
     }

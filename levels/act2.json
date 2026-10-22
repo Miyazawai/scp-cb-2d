@@ -652,7 +652,9 @@
           "secs": 1.1
         },
         {
-          "do": "end_act"
+          "do": "end_act",
+          "key": "end_act2_title",
+          "sub": "end_act2_sub"
         }
       ],
       "need": {

@@ -21,11 +21,11 @@ $cases = @(
     @{ n = "act2 breakers + power";      a = @("--level=res://levels/act2.json", "--scenario=act2_breakers"); code = 0; has = "PASS failures=0" },
     @{ n = "act2 exit at the lift";      a = @("--level=res://levels/act2.json", "--scenario=act2_exit"); code = 0; has = "PASS failures=0" },
     @{ n = "act2 lockdown state";      a = @("--level=res://levels/act2.json", "--scenario=act2_lockdown"); code = 0; has = "PASS failures=0" },
+    @{ n = "act1 lift hands over to act2"; a = @("--scenario=act1_to_act2"); code = 0; has = "LEVEL res://levels/act2.json" },
     @{ n = "act1 walkthrough";           a = @("--scenario=act1_walkthrough");                 code = 0; has = "PASS failures=0" },
     @{ n = "act1 documents";             a = @("--scenario=act1_documents");                   code = 0; has = "PASS failures=0" },
     @{ n = "act1 terminals";             a = @("--scenario=act1_terminals");                   code = 0; has = "PASS failures=0" },
     @{ n = "act1 vending machine";       a = @("--scenario=act1_vending");                     code = 0; has = "PASS failures=0" },
-    @{ n = "act1 elevator";              a = @("--scenario=act1_elevator");                    code = 0; has = "PASS failures=0" },
     @{ n = "negative control goes red";  a = @("--scenario=negative_control");                 code = 1; has = "FAIL failures=1" }
 )
 
