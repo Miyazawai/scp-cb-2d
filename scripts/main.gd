@@ -9,7 +9,7 @@ const TILE := 16
 var MAP_W := 40
 var MAP_H := 32
 
-enum St { TITLE, PLAY, PAUSE, DOC, DEAD, END, INV, MACHINE }
+enum St { TITLE, PLAY, PAUSE, DOC, DEAD, END, INV, MACHINE, SETTINGS }
 
 var grid: Array = []
 var level: Dictionary = {}
@@ -44,6 +44,10 @@ static var docs_found: Dictionary = {}
 var has_nvg := false
 var breakers: Dictionary = {}
 var powered := false
+var settings_sel := 0
+var started_once := false
+var captions_on := true
+var master_volume := 80
 
 var ambient := 1.0
 var deny_t := 0.0
@@ -718,6 +722,14 @@ func _apply_args() -> void:
 		player.position = Vector2(13.0, 5.0) * TILE
 		_shot("demo_shot12.png")
 		return
+	if a.has("--shot14"):
+		shot_mode = true
+		st = St.SETTINGS
+		ui.show_title(false)
+		ui.fade_to(0.0, 0.01)
+		ui.show_settings(_settings_values(), 0)
+		_shot("demo_shot14.png")
+		return
 	if a.has("--shot13"):
 		shot_mode = true
 		st = St.PLAY
@@ -1170,6 +1182,35 @@ func _build_triggers() -> void:
 			"actions": t.get("actions", []),
 			"fired": false
 		})
+func _settings_values() -> Array:
+	return [
+		"%d%%" % master_volume,
+		"English" if I18n.lang == "en" else "中文",
+		I18n.t("on") if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN else I18n.t("off"),
+		I18n.t("on") if captions_on else I18n.t("off"),
+	]
+
+func _open_settings() -> void:
+	st = St.SETTINGS
+	player.freeze = true
+	ui.show_settings(_settings_values(), settings_sel)
+
+func _settings_adjust(dir: int) -> void:
+	match settings_sel:
+		0:
+			master_volume = clampi(master_volume + dir * 10, 0, 100)
+			var db := linear_to_db(float(master_volume) / 100.0) if master_volume > 0 else -80.0
+			AudioServer.set_bus_volume_db(0, db)
+		1:
+			I18n.toggle()
+			ui.refresh()
+		2:
+			var full := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if full else DisplayServer.WINDOW_MODE_FULLSCREEN)
+		3:
+			captions_on = not captions_on
+	ui.show_settings(_settings_values(), settings_sel)
+
 func _resolve_ending(gate: String) -> void:
 	if st == St.END:
 		return
@@ -1420,6 +1461,7 @@ func _start_game() -> void:
 	# flip the state first: _process re-shows the title every frame while we are
 	# still in TITLE, which would undo the hide below during the fade-out.
 	st = St.PLAY
+	started_once = true
 	ui.show_title(false)
 	ui.fade_to(1.0, 0.4)
 	await get_tree().create_timer(0.45).timeout
@@ -1470,6 +1512,8 @@ func _win() -> void:
 	ui.fade_to(0.0, 0.6)
 
 func _on_scp_stepped(dist: float) -> void:
+	if captions_on:
+		ui.caption(I18n.t("cap_stone"), 1.2)
 	if dist < 160.0 and cam:
 		var k: float = clampf(1.0 - dist / 160.0, 0.0, 1.0)
 		cam.offset = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * k * 3.0
@@ -1850,6 +1894,8 @@ func _input(event: InputEvent) -> void:
 		St.TITLE:
 			if k == KEY_ENTER or k == KEY_KP_ENTER or k == KEY_SPACE:
 				_start_game()
+			elif k == KEY_S:
+				_open_settings()
 		St.PLAY:
 			if k == KEY_E:
 				_interact()
@@ -1858,7 +1904,9 @@ func _input(event: InputEvent) -> void:
 				player.freeze = true
 				ui.show_pause(true)
 		St.PAUSE:
-			if k == KEY_ESCAPE:
+			if k == KEY_S:
+				_open_settings()
+			elif k == KEY_ESCAPE:
 				st = St.PLAY
 				player.freeze = false
 				ui.show_pause(false)
@@ -1869,6 +1917,25 @@ func _input(event: InputEvent) -> void:
 				st = St.PLAY
 				player.freeze = false
 				ui.hide_inv()
+		St.SETTINGS:
+			if k == KEY_ESCAPE:
+				ui.hide_settings()
+				if started_once:
+					st = St.PLAY
+					player.freeze = false
+				else:
+					st = St.TITLE
+					ui.show_title(true)
+			elif k == KEY_UP:
+				settings_sel = maxi(0, settings_sel - 1)
+				ui.show_settings(_settings_values(), settings_sel)
+			elif k == KEY_DOWN:
+				settings_sel = mini(3, settings_sel + 1)
+				ui.show_settings(_settings_values(), settings_sel)
+			elif k == KEY_LEFT:
+				_settings_adjust(-1)
+			elif k == KEY_RIGHT:
+				_settings_adjust(1)
 		St.MACHINE:
 			if k == KEY_ESCAPE:
 				ui.hide_doc()

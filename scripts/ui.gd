@@ -88,6 +88,7 @@ func _ready() -> void:
 	_build_dead()
 	_build_end()
 	_build_inv()
+	_build_settings()
 
 	blink_overlay = ColorRect.new()
 	blink_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -200,6 +201,13 @@ func _build_hud() -> void:
 	obj_label = label("", 12, COL_AMBER)
 	obj_label.position = Vector2(10, 6)
 	hud.add_child(obj_label)
+
+	caption_label = label("", 12, Color(0.62, 0.68, 0.74))
+	caption_label.position = Vector2(0, 178)
+	caption_label.size = Vector2(480, 14)
+	caption_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	caption_label.modulate.a = 0.0
+	root.add_child(caption_label)
 
 	prompt_label = label("", 12, COL_TEXT)
 	prompt_label.position = Vector2(0, 196)
@@ -481,6 +489,10 @@ func tick(delta: float, blink_ratio: float, battery_ratio: float, stamina_ratio:
 
 	blink_overlay.color.a = 0.0 if eyes_open else 0.97
 
+	if caption_t > 0.0:
+		caption_t -= delta
+		caption_label.modulate.a = clampf(caption_t / 0.4, 0.0, 1.0)
+
 	if toast_t > 0.0:
 		toast_t -= delta
 		toast.modulate.a = clampf(toast_t / 0.5, 0.0, 1.0)
@@ -536,3 +548,74 @@ func show_end(on: bool, title_key: String = "end_title", sub_key: String = "end_
 func fade_to(a: float, secs: float) -> void:
 	var tw := create_tween()
 	tw.tween_property(fade_rect, "color:a", a, secs)
+
+var settings_layer: Control = null
+var set_rows: Array = []
+var set_title: Label = null
+var set_hint: Label = null
+var caption_label: Label = null
+var caption_t := 0.0
+
+func _build_settings() -> void:
+	settings_layer = Control.new()
+	settings_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	settings_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(settings_layer)
+
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.01, 0.012, 0.016, 0.90)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	settings_layer.add_child(dim)
+
+	var box := ColorRect.new()
+	box.position = Vector2(92, 50)
+	box.size = Vector2(296, 170)
+	box.color = Color(0.055, 0.06, 0.07, 0.99)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	settings_layer.add_child(box)
+
+	var edge := ColorRect.new()
+	edge.position = Vector2(92, 50)
+	edge.size = Vector2(296, 2)
+	edge.color = Color(0.85, 0.72, 0.35, 0.9)
+	edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	settings_layer.add_child(edge)
+
+	set_title = label('', 12, COL_AMBER)
+	set_title.position = Vector2(104, 60)
+	settings_layer.add_child(set_title)
+
+	for i in 4:
+		var l := label('', 12, COL_TEXT)
+		l.position = Vector2(104, 86 + i * 22)
+		l.size = Vector2(272, 18)
+		settings_layer.add_child(l)
+		set_rows.append(l)
+
+	set_hint = label('', 12, COL_DIM)
+	set_hint.position = Vector2(104, 196)
+	settings_layer.add_child(set_hint)
+	settings_layer.visible = false
+
+func show_settings(values: Array, sel: int) -> void:
+	set_title.text = I18n.t('set_title')
+	set_hint.text = I18n.t('set_hint')
+	var names := [I18n.t('set_volume'), I18n.t('set_language'), I18n.t('set_fullscreen'), I18n.t('set_captions')]
+	for i in 4:
+		var mark := '>' if i == sel else ' '
+		set_rows[i].text = '%s %s   %s' % [mark, names[i], String(values[i])]
+		set_rows[i].modulate = Color(1, 1, 1, 1) if i == sel else Color(1, 1, 1, 0.75)
+	settings_layer.visible = true
+	hud.visible = false
+
+func hide_settings() -> void:
+	settings_layer.visible = false
+	hud.visible = true
+
+func caption(text: String, secs: float = 1.6) -> void:
+	if caption_label == null:
+		return
+	caption_label.text = text
+	caption_t = secs
+	caption_label.modulate.a = 1.0
