@@ -137,6 +137,79 @@ func _load_level(path: String) -> Dictionary:
 			"doors": [], "triggers": [], "scps": [], "spawn": [5.5, 5.5], "exit": {"rect": [9, 25, 3, 3]}}
 	return parsed
 
+func _pacing_report() -> void:
+	var lv := _load_level("res://levels/act1.json")
+	var w := int(lv["size"][0])
+	var h := int(lv["size"][1])
+	var g := []
+	for y in h:
+		var row := []
+		for x in w:
+			row.append("#")
+		g.append(row)
+	for a in lv["areas"]:
+		var r: Array = a["rect"]
+		for yy in range(int(r[1]), int(r[1]) + int(r[3])):
+			for xx in range(int(r[0]), int(r[0]) + int(r[2])):
+				if xx >= 0 and yy >= 0 and xx < w and yy < h:
+					g[yy][xx] = "."
+	var door_cells := {}
+	for d in lv.get("doors", []):
+		for c in d["cells"]:
+			door_cells[Vector2i(int(c[0]), int(c[1]))] = true
+
+	var route := [
+		{"name": "spawn -> corridor",  "at": [13.0, 4.5],  "dwell": 15},
+		{"name": "corridor -> locker", "at": [15.0, 12.5], "dwell": 45},
+		{"name": "locker -> door 1",   "at": [24.5, 8.5],  "dwell": 20},
+		{"name": "door 1 -> log",      "at": [21.0, 15.0], "dwell": 40},
+		{"name": "log -> card 2",      "at": [18.5, 19.0], "dwell": 30},
+		{"name": "card 2 -> door 2",   "at": [14.2, 16.5], "dwell": 20},
+		{"name": "door 2 -> power",    "at": [4.5, 17.5],  "dwell": 40},
+		{"name": "power -> elevator",  "at": [29.5, 14.5], "dwell": 30},
+	]
+
+	var sp: Array = lv["spawn"]
+	var cur := Vector2i(int(sp[0]), int(sp[1]))
+	var total_travel := 0
+	var total_dwell := 0
+	print("PACING name                 tiles   travel_s  dwell_s")
+	for step in route:
+		var at: Array = step["at"]
+		var dst := Vector2i(int(at[0]), int(at[1]))
+		var dist := _bfs_tiles(g, w, h, door_cells, cur, dst)
+		var travel := float(dist) * 16.0 / 44.0
+		total_travel += int(travel)
+		total_dwell += int(step["dwell"])
+		print("PACING %-20s %5d %9.0f %8d" % [step["name"], dist, travel, int(step["dwell"])])
+		cur = dst
+	var total := total_travel + total_dwell
+	print("PACING total_travel_s=%d total_dwell_s=%d total_s=%d total_min=%.1f" % [
+		total_travel, total_dwell, total, float(total) / 60.0])
+	print("PACING target_min=25..35 %s" % ["OK" if total >= 25 * 60 and total <= 35 * 60 else "OUT OF RANGE"])
+	get_tree().quit(0)
+
+func _bfs_tiles(g: Array, w: int, h: int, door_cells: Dictionary, from: Vector2i, to: Vector2i) -> int:
+	var dist := {from: 0}
+	var q: Array = [from]
+	var head := 0
+	while head < q.size():
+		var c: Vector2i = q[head]
+		head += 1
+		if c == to:
+			return int(dist[c])
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var n: Vector2i = c + d
+			if n.x < 0 or n.y < 0 or n.x >= w or n.y >= h:
+				continue
+			if dist.has(n):
+				continue
+			if g[n.y][n.x] != "." and not door_cells.has(n):
+				continue
+			dist[n] = int(dist[c]) + 1
+			q.append(n)
+	return 99
+
 func _validate_level(arg: String) -> void:
 	var path := "res://levels/act1.json"
 	if arg.begins_with("--validate="):
@@ -426,6 +499,10 @@ func _scenario_run(name: String) -> void:
 
 func _apply_args() -> void:
 	var a := _args()
+	for arg in a:
+		if arg == "--pacing":
+			_pacing_report()
+			return
 	for arg in a:
 		if arg.begins_with("--scenario"):
 			var nm := "list"
