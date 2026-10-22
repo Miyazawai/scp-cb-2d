@@ -6,12 +6,13 @@ const Assets := preload("res://scripts/assets.gd")
 const I18n := preload("res://scripts/i18n.gd")
 
 const TILE := 16
-const MAP_W := 40
-const MAP_H := 32
+var MAP_W := 40
+var MAP_H := 32
 
 enum St { TITLE, PLAY, PAUSE, DOC, DEAD, END, INV }
 
 var grid: Array = []
+var level: Dictionary = {}
 var st: int = St.TITLE
 
 var player: CharacterBody2D = null
@@ -44,12 +45,17 @@ var shot_mode := false
 # ---------------------------------------------------------------- boot
 
 func _ready() -> void:
+	level = _load_level("res://levels/act1.json")
+	MAP_W = int(level["size"][0])
+	MAP_H = int(level["size"][1])
+	var ex: Array = level["exit"]["rect"]
+	exit_zone = Rect2(ex[0] * TILE, ex[1] * TILE, ex[2] * TILE, ex[3] * TILE)
+
 	audio = load("res://scripts/audio.gd").new()
 	audio.name = "Audio"
 	add_child(audio)
 
 	_build_grid()
-	exit_zone = Rect2(9 * TILE, 25 * TILE, 3 * TILE, 3 * TILE)
 	_build_floor()
 	_build_walls()
 	_build_ao()
@@ -71,7 +77,6 @@ func _ready() -> void:
 	audio.start_ambience()
 
 	_apply_args()
-
 func _selftest() -> void:
 	var start := Vector2i(5, 5)
 	var seen := {}
@@ -112,10 +117,74 @@ func _selftest() -> void:
 	print("SELFTEST 173 at ", scell, " floor=", _is_floor(scell.x, scell.y))
 	get_tree().quit()
 
+func _load_level(path: String) -> Dictionary:
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		push_error("level not found: " + path)
+		return {"size": [40, 32], "areas": [], "lights": [], "props": [], "items": [],
+			"doors": [], "triggers": [], "scps": [], "spawn": [5.5, 5.5], "exit": {"rect": [9, 25, 3, 3]}}
+	var parsed = JSON.parse_string(f.get_as_text())
+	if typeof(parsed) != TYPE_DICTIONARY:
+		push_error("level json is not an object: " + path)
+		return {"size": [40, 32], "areas": [], "lights": [], "props": [], "items": [],
+			"doors": [], "triggers": [], "scps": [], "spawn": [5.5, 5.5], "exit": {"rect": [9, 25, 3, 3]}}
+	return parsed
+
+func _validate() -> void:
+	var problems: Array = []
+	var sp: Array = level["spawn"]
+	var start := Vector2i(int(sp[0]), int(sp[1]))
+	var seen := {}
+	var q: Array = [start]
+	seen[start] = true
+	while q.size() > 0:
+		var c: Vector2i = q.pop_back()
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var n: Vector2i = c + d
+			if seen.has(n):
+				continue
+			var passable := _is_floor(n.x, n.y)
+			if not passable:
+				for dr in doors:
+					if dr.cells.has(n):
+						passable = true
+			if passable:
+				seen[n] = true
+				q.append(n)
+	for it in items:
+		var c := Vector2i(int(it.pos.x / TILE), int(it.pos.y / TILE))
+		if not _is_floor(c.x, c.y):
+			problems.append("item %s is not on floor at %s" % [it.kind, c])
+		elif not seen.has(c):
+			problems.append("item %s is unreachable at %s" % [it.kind, c])
+	for p in level["props"]:
+		var at: Array = p["at"]
+		var c := Vector2i(int(at[0]), int(at[1]))
+		if not _is_floor(c.x, c.y):
+			problems.append("prop %s is not on floor at %s" % [p["art"], c])
+	for d in doors:
+		for cell in d["cells"]:
+			if not seen.has(cell):
+				problems.append("door cell %s is unreachable" % cell)
+	var ex: Array = level["exit"]["rect"]
+	for yy in range(int(ex[1]), int(ex[1]) + int(ex[3])):
+		for xx in range(int(ex[0]), int(ex[0]) + int(ex[2])):
+			if not seen.has(Vector2i(xx, yy)):
+				problems.append("exit tile %s is unreachable" % Vector2i(xx, yy))
+	print("VALIDATE areas=%d lights=%d props=%d items=%d doors=%d reachable=%d problems=%d" % [
+		level["areas"].size(), level["lights"].size(), level["props"].size(),
+		items.size(), doors.size(), seen.size(), problems.size()])
+	for p in problems:
+		print("  ! ", p)
+	get_tree().quit()
+
 func _apply_args() -> void:
 	var a := PackedStringArray()
 	a.append_array(OS.get_cmdline_args())
 	a.append_array(OS.get_cmdline_user_args())
+	if a.has("--validate"):
+		_validate()
+		return
 	if a.has("--selftest"):
 		_selftest()
 		return
@@ -232,16 +301,9 @@ func _build_grid() -> void:
 		for x in MAP_W:
 			row.append("#")
 		grid.append(row)
-	_carve(2, 2, 9, 8)       # cell
-	_carve(10, 5, 11, 6)     # cell -> corridor
-	_carve(12, 3, 30, 8)     # corridor
-	_carve(24, 9, 25, 12)    # corridor -> checkpoint
-	_carve(16, 13, 30, 20)   # checkpoint
-	_carve(10, 16, 15, 17)   # checkpoint -> power
-	_carve(3, 13, 9, 20)     # power room
-	_carve(6, 21, 7, 23)     # power -> exit
-	_carve(3, 24, 12, 28)    # exit hall
-
+	for a in level["areas"]:
+		var r: Array = a["rect"]
+		_carve(int(r[0]), int(r[1]), int(r[0]) + int(r[2]) - 1, int(r[1]) + int(r[3]) - 1)
 func _carve(x0: int, y0: int, x1: int, y1: int) -> void:
 	for y in range(y0, y1 + 1):
 		for x in range(x0, x1 + 1):
@@ -383,27 +445,11 @@ func _build_lights() -> void:
 	add_child(cm)
 
 	var tex := _radial(128, 1.5)
-	var spots := [
-		[Vector2(5.5, 4.5), 1.05, false],
-		[Vector2(10.5, 5.5), 0.75, false],
-		[Vector2(14.5, 5.5), 0.95, false],
-		[Vector2(20.5, 4.5), 0.85, false],
-		[Vector2(26.5, 5.5), 1.00, true],
-		[Vector2(24.5, 10.5), 0.70, false],
-		[Vector2(20.0, 16.0), 0.95, false],
-		[Vector2(26.5, 17.5), 0.85, false],
-		[Vector2(29.0, 14.0), 0.60, false],
-		[Vector2(12.5, 16.5), 0.70, false],
-		[Vector2(5.5, 15.5), 0.55, true],
-		[Vector2(7.0, 19.0), 0.50, true],
-		[Vector2(6.5, 22.0), 0.65, false],
-		[Vector2(6.0, 26.0), 0.90, false],
-		[Vector2(10.0, 26.5), 0.90, false],
-	]
-	for s in spots:
-		var p: Vector2 = s[0] * TILE
-		var energy: float = s[1]
-		var flick: bool = s[2]
+	for L in level["lights"]:
+		var at: Array = L["at"]
+		var p := Vector2(float(at[0]), float(at[1])) * TILE
+		var energy := float(L["energy"])
+		var flick := bool(L.get("flicker", false))
 		var l := PointLight2D.new()
 		l.texture = tex
 		l.texture_scale = 1.7
@@ -416,7 +462,6 @@ func _build_lights() -> void:
 		lights_ref.append({"pos": p, "radius": 86.0, "node": l, "base": l.energy})
 		if flick:
 			flicker.append(l)
-
 		if Assets.has_art("tiles/ceiling_lamp.png"):
 			_sprite("tiles/ceiling_lamp.png", p, 3)
 		else:
@@ -426,7 +471,6 @@ func _build_lights() -> void:
 			tube.position = p
 			tube.z_index = 3
 			add_child(tube)
-
 func _radial(px: int, power: float) -> ImageTexture:
 	var img := Image.create(px, px, false, Image.FORMAT_RGBA8)
 	var c := px * 0.5
@@ -447,41 +491,18 @@ func _prop(art: String, cell: Vector2, z: int = 1, fallback_color: Color = Color
 		_quad(Rect2(pos - Vector2(10, 6), Vector2(20, 12)), fallback_color, z)
 
 func _build_props() -> void:
-	_prop("locker.png", Vector2(3.5, 7.5), 1, Color("3a4650"))
-	_prop("chair.png", Vector2(7.5, 3.5), 1, Color("3a4650"))
-	_prop("vent.png", Vector2(15.5, 3.5), 1, Color("2c343c"))
-	_prop("blood_splat.png", Vector2(21.5, 6.0), 0)
-	_prop("corpse.png", Vector2(28.5, 6.0), 1, Color("7a4a20"))
-	_prop("crate.png", Vector2(13.0, 7.5), 1, Color("4a3a28"))
-	_prop("crate.png", Vector2(29.0, 3.5), 1, Color("4a3a28"))
-	_prop("hazard_sign.png", Vector2(12.5, 3.5), 2)
-	_prop("desk.png", Vector2(21.0, 15.0), 1, Color("3d474f"))
-	_prop("terminal.png", Vector2(21.0, 15.0), 2, Color("1f4b6b"))
-	_prop("desk.png", Vector2(27.0, 18.0), 1, Color("3d474f"))
-	_prop("save_terminal.png", Vector2(27.0, 18.0), 2, Color("2f6b3a"))
-	_prop("chair.png", Vector2(22.0, 16.0), 1, Color("3a4650"))
-	_prop("corpse.png", Vector2(18.5, 19.0), 1, Color("7a4a20"))
-	_prop("bodybag.png", Vector2(20.0, 19.5), 1, Color("1c1c20"))
-	_prop("locker.png", Vector2(29.5, 19.5), 1, Color("3a4650"))
-	_prop("locker.png", Vector2(29.5, 18.5), 1, Color("3a4650"))
-	_prop("barrel.png", Vector2(4.5, 18.5), 1, Color("4a4038"))
-	_prop("barrel.png", Vector2(5.5, 18.5), 1, Color("4a4038"))
-	_prop("crate.png", Vector2(8.0, 19.0), 1, Color("4a3a28"))
-	_prop("bodybag.png", Vector2(4.0, 19.0), 1, Color("1c1c20"))
-	_prop("blood_splat.png", Vector2(7.0, 17.0), 0)
-	_prop("vent.png", Vector2(3.5, 13.5), 1, Color("2c343c"))
-
+	for p in level["props"]:
+		var at: Array = p["at"]
+		_prop(String(p["art"]), Vector2(float(at[0]), float(at[1])), int(p.get("z", 1)), Color.TRANSPARENT)
 func _build_items() -> void:
-	items.append(_make_item(Vector2(28.5, 6.0) * TILE, "card", {"level": 1, "label_key": "card_lv1"}))
-	items.append(_make_item(Vector2(18.5, 19.0) * TILE, "card", {"level": 2, "label_key": "card_lv2"}))
-	items.append(_make_item(Vector2(21.0, 15.0) * TILE, "doc", {
-		"title_key": "doc_title",
-		"body_key": "doc_body"
-	}))
-	items.append(_make_item(Vector2(27.0, 18.0) * TILE, "save", {}))
-	items.append(_make_item(Vector2(7.5, 3.5) * TILE, "battery", {}))
-	items.append(_make_item(Vector2(8.5, 19.0) * TILE, "battery", {}))
-
+	for it in level["items"]:
+		var at: Array = it["at"]
+		var data := {}
+		if it.has("level"):
+			data["level"] = int(it["level"])
+		if it.has("label_key"):
+			data["label_key"] = String(it["label_key"])
+		items.append(_make_item(Vector2(float(at[0]), float(at[1])) * TILE, String(it["kind"]), data))
 func _make_item(pos: Vector2, kind: String, data: Dictionary) -> Dictionary:
 	var node := Node2D.new()
 	node.position = pos
@@ -496,9 +517,11 @@ func _make_item(pos: Vector2, kind: String, data: Dictionary) -> Dictionary:
 	return it
 
 func _build_doors() -> void:
-	doors.append(_make_door([Vector2i(24, 9), Vector2i(25, 9)], 1))
-	doors.append(_make_door([Vector2i(15, 16), Vector2i(15, 17)], 2))
-
+	for d in level["doors"]:
+		var cells := []
+		for c in d["cells"]:
+			cells.append(Vector2i(int(c[0]), int(c[1])))
+		doors.append(_make_door(cells, int(d["level"])))
 func _make_door(cells: Array, level: int) -> Dictionary:
 	var body := StaticBody2D.new()
 	body.collision_layer = 1
@@ -551,10 +574,13 @@ func _set_door(d, open: bool) -> void:
 		audio.play("door_close.wav", -4.0)
 
 func _build_triggers() -> void:
-	triggers.append({"rect": Rect2(12 * TILE, 2 * TILE, 3 * TILE, 8 * TILE), "kind": "corridor", "fired": false})
-	triggers.append({"rect": Rect2(16 * TILE, 13 * TILE, 5 * TILE, 8 * TILE), "kind": "checkpoint", "fired": false})
-	triggers.append({"rect": Rect2(3 * TILE, 13 * TILE, 4 * TILE, 8 * TILE), "kind": "power", "fired": false})
-
+	for t in level["triggers"]:
+		var r: Array = t["rect"]
+		triggers.append({
+			"rect": Rect2(float(r[0]) * TILE, float(r[1]) * TILE, float(r[2]) * TILE, float(r[3]) * TILE),
+			"kind": String(t["kind"]),
+			"fired": false
+		})
 func _fire(kind: String) -> void:
 	match kind:
 		"corridor":
@@ -573,7 +599,8 @@ func _fire(kind: String) -> void:
 			burst = 1.2
 
 func _spawn_player() -> void:
-	spawn_pos = Vector2(5.5, 5.5) * TILE
+	var sp: Array = level["spawn"]
+	spawn_pos = Vector2(float(sp[0]), float(sp[1])) * TILE
 	save_pos = spawn_pos
 	player = CharacterBody2D.new()
 	player.name = "Player"
@@ -602,7 +629,8 @@ func _spawn_player() -> void:
 	cam.make_current()
 
 func _spawn_scp() -> void:
-	scp_spawn = Vector2(27.0, 4.5) * TILE
+	var s0: Array = level["scps"][0]["at"]
+	scp_spawn = Vector2(float(s0[0]), float(s0[1])) * TILE
 	scp = Node2D.new()
 	scp.name = "SCP-173"
 	scp.set_script(load("res://scripts/scp173.gd"))

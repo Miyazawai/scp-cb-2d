@@ -62,15 +62,32 @@ D:\software\Godot\4.7.2\Godot_v4.7.2-stable_win64.exe --path "C:\Users\Miyazawa 
 ```
 project.godot          引擎配置（480×270、最近邻过滤）
 main.tscn              唯一场景，节点由脚本生成
-scripts/main.gd        关卡搭建、门禁、HUD、游戏流程
-scripts/player.gd      移动、手电、眨眼、电量、"看见"判定
-scripts/scp173.gd      SCP-173 的凝视规则
-scripts/keycard.gd     钥匙卡
+levels/act1.json       关卡数据：房间矩形、门、灯、道具、可拾取物、触发器、SCP 出生点
+scripts/main.gd        关卡构建、流程、交互、HUD、存档
+scripts/player.gd      移动、手电、眨眼、电量、体力、"看见"判定
+scripts/scp173.gd      SCP-173 的凝视规则与瞬移步
+scripts/ui.gd          全部界面（标题/暂停/文档/背包/死亡/结算）
+scripts/i18n.gd        中英词条表（中文默认）
 tools/check_encoding.py  中文文档编码自检
 CONTEXT.md             术语表（这个项目里的词各指什么）
+docs/design/           总体设计：剧情、四幕、beat 表、结局
 docs/adr/              硬决策记录
 docs/research/         原作系统与地图生成的逆向调研、素材来源登记
-art/_poc/              像素素材产线的可行性探针（程序化生成的占位美术）
+assets/                程序化生成的像素素材、音效、字体
+art/_poc/              像素素材产线的可行性探针
+```
+
+## 自检开关
+
+```powershell
+# 关卡数据校验：道具是否都在可走格上、门两侧是否都可达、出口是否连通
+Godot_v4.7.2-stable_win64.exe --path . --headless -- --validate
+
+# 连通性检查
+... -- --selftest
+
+# 素材是否就位（缺图会自动降级，不会崩）
+... -- --audit
 ```
 
 ## 设计上的四条硬约束
