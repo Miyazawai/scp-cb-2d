@@ -344,6 +344,8 @@ func _validate_level(arg: String) -> void:
 				problems.append("door cell %s is unreachable" % cell)
 
 	var ex: Array = lv["exit"]["rect"]
+	if int(ex[2]) > 0 and int(ex[3]) > 0:
+		problems.append("legacy escape pad is enabled: use an ending or goto_level trigger instead")
 	for yy in range(int(ex[1]), int(ex[1]) + int(ex[3])):
 		for xx in range(int(ex[0]), int(ex[0]) + int(ex[2])):
 			if not seen.has(Vector2i(xx, yy)):
@@ -391,9 +393,10 @@ func _scenarios() -> Dictionary:
 			{ "do": "teleport", "to": [14.2, 16.5] },
 			{ "do": "wait", "secs": 0.2 },
 			{ "do": "interact" },
-			{ "do": "teleport", "to": [10.0, 26.0] },
-			{ "do": "wait", "secs": 2.4 },
-			{ "do": "assert_state", "value": "END", "label": "reaches the exit" },
+			{ "do": "assert_card", "value": "2", "label": "both cards carry the run through act I" },
+			{ "do": "teleport", "to": [29.5, 14.5] },
+			{ "do": "wait", "secs": 0.4 },
+			{ "do": "assert_objective", "value": "obj_a2_enter", "label": "the lift becomes the goal" },
 		],
 		"act1_documents": [
 			{ "do": "teleport", "to": [21.0, 16.2] },
@@ -1729,7 +1732,7 @@ func _interact() -> void:
 			card_level = maxi(card_level, int(it.data.level))
 			_inv_add("card%d" % card_level)
 			audio.play("pickup.wav", -2.0)
-			ui.set_objective("obj_door1" if card_level == 1 else "obj_exit")
+			ui.set_objective("obj_door1" if card_level == 1 else "obj_act1_elevator")
 		"doc":
 			var meta = prompt.ref.data
 			if meta.has("doc_id"):
